@@ -1,0 +1,23 @@
+{
+  "name": "over-review",
+  "version": "1.0.0",
+  "description": "Pull Requests reviewer using AI. Bring Your Own Model, Instant summary, line-by-line comments, and title generation",
+  "homepage": "https://github.com/theoverengineer/over-review#readme",
+  "bugs": {
+    "url": "https://github.com/theoverengineer/over-review/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/theoverengineer/over-review.git"
+  },
+  "license": "MIT",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
