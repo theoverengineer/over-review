@@ -11,13 +11,12 @@
 | --- | --- |
 | `GITHUB_TOKEN` | GitHub API authentication |
 | `LLM_MODEL` | Selected model identifier |
-| `LLM_API_KEY` | Provider API key for non-SAP providers |
+| `LLM_API_KEY` | API key for the configured `ai-sdk` model/provider |
 
 ## Optional Configuration
 
 | Variable | Purpose |
 | --- | --- |
-| `LLM_PROVIDER` | Provider type, default `ai-sdk` |
 | `LLM_BASE_URL` | Custom OpenAI-compatible base URL |
 | `STYLE_GUIDE_RULES` | Repository-specific review rules |
 | `GITHUB_API_URL` | Alternate API URL |
@@ -25,11 +24,6 @@
 | `DEBUG` | Enable local debug context |
 | `DRY_RUN` | Skip GitHub write operations |
 | `FULL_REVIEW` | Force full review |
-| `SAP_AI_CORE_CLIENT_ID` | SAP provider auth |
-| `SAP_AI_CORE_CLIENT_SECRET` | SAP provider auth |
-| `SAP_AI_CORE_TOKEN_URL` | SAP provider auth |
-| `SAP_AI_CORE_BASE_URL` | SAP provider base URL |
-| `SAP_AI_RESOURCE_GROUP` | SAP provider resource group |
 
 ## Action Wiring
 
@@ -37,7 +31,7 @@ Recommended workflow triggers:
 
 ```yaml
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize]
   pull_request_review_comment:
     types: [created]
@@ -62,7 +56,6 @@ The implementation should support action inputs for:
 - `github_api_url`
 - `github_server_url`
 - `llm_model`
-- `llm_provider`
 - `llm_base_url`
 
 The current repository does not declare all LLM inputs in `action.yml`; the rebuild should make declared inputs and runtime config consistent.
@@ -95,12 +88,13 @@ CLI requirements:
 ## Deployment Constraints
 
 - Same-repo PRs only in V1
+- Fork PRs are silently skipped with no review, comment, or reaction
 - No checkout of untrusted PR code required for core review flow
 - Diff and metadata fetched through GitHub APIs
 
 ## Recommended Defaults
 
-- default provider: `ai-sdk`
+- V1 ships only the default `ai-sdk` provider
 - dry-run off by default
 - incremental review on by default
 - title regeneration off unless explicit mention is present

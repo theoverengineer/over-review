@@ -2,7 +2,7 @@
 
 ## Goal
 
-Support multiple LLM backends from day one without leaking provider-specific behavior into review orchestration.
+Keep a stable internal provider seam so additional LLM backends can be added later without leaking provider-specific behavior into review orchestration.
 
 ## Required Capabilities
 
@@ -43,23 +43,17 @@ export interface AIProvider {
 
 ## Provider Registry
 
-- Resolve provider from `LLM_PROVIDER`
 - Resolve model from `LLM_MODEL`
-- Allow provider-specific setup through configuration
+- Keep provider resolution fixed to the default `ai-sdk` path in V1
 - Keep model selection separate from prompt logic
 
-## Baseline Providers
+## V1 Baseline Provider
 
 ### `ai-sdk`
 
-- Default provider in V1
+- Only shipped provider in V1
 - Supports Anthropic, OpenAI, Google, and OpenAI-compatible gateways
 - Can use `LLM_BASE_URL` for custom OpenAI-compatible endpoints
-
-### `sap-ai-sdk`
-
-- Optional enterprise-oriented provider
-- Uses OAuth client credentials and deployment discovery
 
 ## Validation And Fallback Rules
 
@@ -90,7 +84,7 @@ Classify errors into:
 To add a provider:
 
 1. Implement `AIProvider`.
-2. Register provider type and config schema.
+2. Register provider config schema and setup.
 3. Register supported models or model-resolution strategy.
 4. Add tests covering success, timeout, and invalid-output paths.
 5. Do not modify orchestration or prompt modules for provider-specific behavior.

@@ -13,11 +13,29 @@
   "license": "MIT",
   "author": "",
   "type": "commonjs",
-  "main": "index.js",
+  "main": "dist/index.js",
   "directories": {
-    "doc": "docs"
+    "doc": "docs",
+    "dist": "dist",
+    "src": "src"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"package.json\" \"tsconfig.json\" \"eslint.config.js\" \".prettierrc\" \"src/**/*.ts\"",
+    "format:check": "prettier --check \"package.json\" \"tsconfig.json\" \"eslint.config.js\" \".prettierrc\" \"src/**/*.ts\"",
+    "test": "npm run build && node --test dist"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^25.9.3",
+    "@typescript-eslint/eslint-plugin": "^8.61.0",
+    "@typescript-eslint/parser": "^8.61.0",
+    "eslint": "^10.5.0",
+    "globals": "^17.6.0",
+    "prettier": "^3.8.4",
+    "typescript": "^6.0.3"
   }
 }

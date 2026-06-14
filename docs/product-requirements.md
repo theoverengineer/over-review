@@ -22,13 +22,14 @@ Build a GitHub-native AI PR reviewer that summarizes pull requests, posts action
 - Reply in relevant review threads
 - Support repository-specific review rules
 - Support local CLI dry-run for testing and debugging
-- Support multiple LLM providers behind one internal contract
+- Keep an internal provider contract so additional backends can be added after V1
 
 ## V1 Scope
 
 - GitHub Action runtime
 - Local CLI runtime
 - Same-repo PRs only
+- `ai-sdk` as the only shipped provider in V1
 - Summary generation from PR metadata and diffs
 - Review generation from normalized diffs
 - Explicit-trigger PR title regeneration
@@ -37,6 +38,7 @@ Build a GitHub-native AI PR reviewer that summarizes pull requests, posts action
 ## Out Of Scope
 
 - Forked PR support
+- Additional provider implementations beyond `ai-sdk`
 - External persistence layer
 - Auto-fix generation or patch application
 - PR body rewriting
@@ -62,5 +64,6 @@ Build a GitHub-native AI PR reviewer that summarizes pull requests, posts action
 - Automatic PR review works end to end
 - Incremental state is persisted and reused correctly
 - Manual `/review` and `/review --full` work
+- Unauthorized manual `/review` adds only an `eyes` reaction and does not run review
 - Review-thread replies only happen for relevant threads
 - CLI dry-run skips writes and shows review output

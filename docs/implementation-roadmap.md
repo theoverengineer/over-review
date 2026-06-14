@@ -35,13 +35,11 @@ Exit criteria:
 Deliver:
 
 - provider contract
-- provider registry
 - default `ai-sdk` implementation
-- optional SAP adapter
 
 Exit criteria:
 
-- structured inference works end to end
+- structured inference works end to end through the default `ai-sdk` path
 - invalid output is rejected or recovered through fallback logic
 
 ## Milestone 3: Review Core
@@ -66,11 +64,16 @@ Deliver:
 - hidden payload state
 - incremental review selection
 - `/review` and `/review --full`
+- manual review authorization via `author_association`
+- unauthorized `/review` handling with `eyes` reaction and no review run
+- same-repo gate with silent fork skip
 
 Exit criteria:
 
 - incremental review reuses prior state correctly
 - forced full review bypasses incremental state
+- only `OWNER`, `MEMBER`, and `COLLABORATOR` can trigger manual review
+- unauthorized `/review` adds an `eyes` reaction and does not start review work
 
 ## Milestone 5: Thread Replies And CLI
 

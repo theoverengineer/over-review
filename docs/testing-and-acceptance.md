@@ -24,6 +24,7 @@ Cover these flows with mocked GitHub and provider interactions:
 - incremental review using existing payload state
 - manual `/review`
 - manual `/review --full`
+- unauthorized manual `/review`
 - review-thread reply flow
 - CLI dry-run flow
 
@@ -46,6 +47,8 @@ Maintain reusable fixtures for:
 - The run generates a PR summary.
 - The run submits a review when actionable comments exist.
 - The final overview comment contains refreshed hidden state.
+- Automatic review is triggered only from supported `pull_request` events.
+- Fork PR events are silently skipped with no write operations.
 
 ### Incremental Review
 
@@ -56,7 +59,11 @@ Maintain reusable fixtures for:
 ### Manual Commands
 
 - `/review` triggers the review flow.
+- `/ai-review` behaves as an alias for `/review`.
 - `/review --full` forces a full review.
+- Only `OWNER`, `MEMBER`, and `COLLABORATOR` can trigger manual review via `author_association`.
+- Unauthorized `/review` adds only an `eyes` reaction and does not start review work.
+- Manual commands on fork PRs are silently skipped.
 - Non-command issue comments do nothing.
 
 ### Thread Replies
@@ -64,12 +71,14 @@ Maintain reusable fixtures for:
 - Replies are generated only for relevant review threads.
 - Replies mention the target user.
 - Generic non-actionable replies are not posted.
+- Thread-reply events on fork PRs are silently skipped.
 
 ### CLI Dry-Run
 
 - Dry-run performs all fetch and prompt steps.
 - Dry-run skips GitHub writes.
 - `--out` saves the emitted output.
+- CLI review of fork PRs is silently skipped.
 
 ## Verification Commands
 
@@ -94,5 +103,5 @@ V1 is ready only if:
 - lint passes
 - build passes
 - core tests pass
-- the six integration flows above are covered
-- docs and runtime behavior agree on same-repo V1 constraints
+- the required integration flows above are covered
+- docs and runtime behavior agree on `pull_request`-only automatic review, same-repo-only support, silent fork skips, manual review authorization for `OWNER`, `MEMBER`, and `COLLABORATOR`, and `ai-sdk`-only V1 provider scope
