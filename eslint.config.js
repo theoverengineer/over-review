@@ -6,7 +6,7 @@ const globals = require('globals');
 /** @type {import('eslint').Linter.Config[]} */
 module.exports = [
   {
-    ignores: ['dist/', 'node_modules/', '.opencode/'],
+    ignores: ['dist/', 'node_modules/', '.opencode/', 'vitest.config.ts'],
   },
   {
     files: ['**/*.ts'],
@@ -15,7 +15,7 @@ module.exports = [
       parserOptions: {
         ecmaVersion: 2020,
         sourceType: 'module',
-        project: './tsconfig.json',
+        project: ['./tsconfig.json', './tsconfig.test.json'],
         tsconfigRootDir: __dirname,
       },
       globals: {

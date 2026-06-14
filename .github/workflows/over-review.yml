@@ -1,0 +1,30 @@
+name: over-review
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  issue_comment:
+    types: [created]
+  pull_request_review_comment:
+    types: [created]
+
+permissions: {}
+
+jobs:
+  review:
+    if: |
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'issue_comment' && github.event.issue.pull_request) ||
+      github.event_name == 'pull_request_review_comment'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Run over-review
+        uses: theoverengineer/over-review@main
+        with:
+          llm-model: ${{ secrets.LLM_MODEL }}
+          llm-api-key: ${{ secrets.LLM_API_KEY }}
+          llm-base-url: ${{ secrets.LLM_BASE_URL }}

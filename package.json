@@ -24,18 +24,27 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
-    "format": "prettier --write \"package.json\" \"tsconfig.json\" \"eslint.config.js\" \".prettierrc\" \"src/**/*.ts\"",
-    "format:check": "prettier --check \"package.json\" \"tsconfig.json\" \"eslint.config.js\" \".prettierrc\" \"src/**/*.ts\"",
-    "test": "npm run build && node --test dist"
+    "format": "prettier --write \"package.json\" \"tsconfig.json\" \"tsconfig.test.json\" \"eslint.config.js\" \".prettierrc\" \"src/**/*.ts\" \"test/**/*.ts\"",
+    "format:check": "prettier --check \"package.json\" \"tsconfig.json\" \"tsconfig.test.json\" \"eslint.config.js\" \".prettierrc\" \"src/**/*.ts\" \"test/**/*.ts\"",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "dev": "node --env-file=.env --import tsx src/main.ts",
+    "dev:pr": "node scripts/run-dev.js pull_request payloads/pull-request-opened.json",
+    "dev:issue-comment": "node scripts/run-dev.js issue_comment payloads/issue-comment-created.json",
+    "dev:review-comment": "node scripts/run-dev.js pull_request_review_comment payloads/pull-request-review-comment-created.json"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.9.3",
     "@typescript-eslint/eslint-plugin": "^8.61.0",
     "@typescript-eslint/parser": "^8.61.0",
+    "@vitest/coverage-v8": "^4.1.8",
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
     "prettier": "^3.8.4",
-    "typescript": "^6.0.3"
+    "tsx": "^4.20.6",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
   }
 }

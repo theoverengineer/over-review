@@ -1,0 +1,34 @@
+name: 'over-review'
+description: 'AI-powered Pull Request reviewer using your own model'
+author: 'theoverengineer'
+
+inputs:
+  llm-model:
+    description: 'LLM model to use for review (e.g., gpt-4o, claude-3.5-sonnet)'
+    required: true
+  llm-api-key:
+    description: 'API key for the LLM provider'
+    required: true
+  llm-base-url:
+    description: 'Base URL for the LLM API (optional, for OpenAI-compatible APIs)'
+    required: false
+  llm-provider:
+    description: 'LLM provider (ai-sdk only in V1)'
+    required: false
+    default: 'ai-sdk'
+  review-mode:
+    description: 'Review mode: auto, manual, or cli'
+    required: false
+    default: 'auto'
+  full-mode:
+    description: 'Force full review instead of incremental'
+    required: false
+    default: 'false'
+
+runs:
+  using: 'node20'
+  main: 'dist/main.js'
+
+branding:
+  icon: 'check-square'
+  color: 'black'
