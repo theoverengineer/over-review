@@ -220,7 +220,10 @@ describe('loadConfig', () => {
   });
 
   it('defaults to undefined (provider default) when not configured', () => {
+    const cwd = createTempDir();
+
     const config = loadConfig({
+      cwd,
       env: {
         GITHUB_TOKEN: 'token',
         LLM_MODEL: 'model',

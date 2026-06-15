@@ -75,7 +75,10 @@ export function validateConfig(config: Partial<Config>): ConfigValidationIssue[]
     });
   }
 
-  if (config.LLM_STRUCTURED_OUTPUTS !== undefined && !isValidBoolean(config.LLM_STRUCTURED_OUTPUTS)) {
+  if (
+    config.LLM_STRUCTURED_OUTPUTS !== undefined &&
+    !isValidBoolean(config.LLM_STRUCTURED_OUTPUTS)
+  ) {
     issues.push({
       field: 'LLM_STRUCTURED_OUTPUTS',
       message: 'LLM_STRUCTURED_OUTPUTS must be a boolean value (true/false, yes/no, 1/0).',

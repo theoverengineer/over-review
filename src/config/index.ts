@@ -102,7 +102,10 @@ export function loadEnvironmentVariables(env: NodeJS.ProcessEnv = process.env): 
   }
 
   if (env.LLM_STRUCTURED_OUTPUTS !== undefined) {
-    patch.LLM_STRUCTURED_OUTPUTS = parseBooleanOrThrow(env.LLM_STRUCTURED_OUTPUTS, 'LLM_STRUCTURED_OUTPUTS');
+    patch.LLM_STRUCTURED_OUTPUTS = parseBooleanOrThrow(
+      env.LLM_STRUCTURED_OUTPUTS,
+      'LLM_STRUCTURED_OUTPUTS'
+    );
   }
 
   return patch;
@@ -195,7 +198,12 @@ function parseTimeoutOrThrow(value: string | undefined): number | undefined {
 }
 
 function assignConfigValue(patch: ConfigPatch, key: keyof Config, value: string): void {
-  if (key === 'DEBUG' || key === 'DRY_RUN' || key === 'FULL_REVIEW' || key === 'LLM_STRUCTURED_OUTPUTS') {
+  if (
+    key === 'DEBUG' ||
+    key === 'DRY_RUN' ||
+    key === 'FULL_REVIEW' ||
+    key === 'LLM_STRUCTURED_OUTPUTS'
+  ) {
     const parsed = parseBooleanOrThrow(value, key);
 
     if (parsed !== undefined) {
