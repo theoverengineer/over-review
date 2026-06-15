@@ -179,6 +179,8 @@ export interface ResolvedPullRequestIdentity {
   headRepoFullName: string | null;
   /** The full name of the base repository (where changes are merged into) */
   baseRepoFullName: string | null;
+  /** The head commit SHA */
+  headSha?: string;
 }
 
 export interface EventOutcome {

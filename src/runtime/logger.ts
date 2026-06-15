@@ -18,6 +18,18 @@ export interface RunLogFields {
   dryRun?: boolean;
   outcome?: string;
   reason?: string;
+  title?: string;
+  error?: string;
+  needsAttention?: boolean;
+  findingsCount?: number;
+  total?: number;
+  filtered?: number;
+  inline?: number;
+  count?: number;
+  summaryLength?: number;
+  hasExisting?: boolean;
+  filePath?: string;
+  line?: number;
 }
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';

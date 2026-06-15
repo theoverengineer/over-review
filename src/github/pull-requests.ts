@@ -4,6 +4,7 @@
  */
 
 import { GitHubClient } from './client';
+import type { PullRequestCommit, PullRequestFile, PullRequestSnapshot } from '../contracts/review';
 import type { PullRequestInfo, RepositoryInfo } from '../runtime/types';
 
 /**
@@ -20,6 +21,14 @@ export interface PullRequestIdentity {
   headRepoFullName: string | null;
   /** The full name of the base repository (where changes are merged into) */
   baseRepoFullName: string | null;
+  /** The head commit SHA */
+  headSha: string;
+}
+
+export interface PullRequestReviewData {
+  pullRequest: PullRequestSnapshot;
+  files: PullRequestFile[];
+  commits: PullRequestCommit[];
 }
 
 /**
@@ -79,6 +88,7 @@ export function extractPullRequestIdentity(
     isFork,
     headRepoFullName,
     baseRepoFullName,
+    headSha: pr.head.sha,
   };
 }
 
@@ -161,5 +171,58 @@ export function getPullRequestIdentityFromEvent(event: {
     isFork: headRepoFullName !== baseRepoFullName,
     headRepoFullName,
     baseRepoFullName,
+    headSha: event.pull_request.head.sha,
   };
+}
+
+export async function fetchPullRequestReviewData(
+  client: GitHubClient,
+  repoFullName: string,
+  pullRequestNumber: number
+): Promise<PullRequestReviewData> {
+  const pullRequest = await client.get<{
+    number: number;
+    title: string;
+    body?: string;
+    head: {
+      sha: string;
+      repo?: { full_name?: string | null };
+    };
+    base: {
+      repo?: { full_name?: string | null };
+    };
+  }>(`/repos/${repoFullName}/pulls/${pullRequestNumber}`);
+
+  const [files, commits] = await Promise.all([
+    client.get<PullRequestFile[]>(
+      `/repos/${repoFullName}/pulls/${pullRequestNumber}/files?per_page=100`
+    ),
+    client.get<PullRequestCommit[]>(
+      `/repos/${repoFullName}/pulls/${pullRequestNumber}/commits?per_page=100`
+    ),
+  ]);
+
+  return {
+    pullRequest: {
+      number: pullRequest.number,
+      repoFullName,
+      title: pullRequest.title,
+      body: pullRequest.body,
+      headSha: pullRequest.head.sha,
+      baseRepoFullName: pullRequest.base.repo?.full_name ?? repoFullName,
+    },
+    files,
+    commits,
+  };
+}
+
+export async function updatePullRequestTitle(
+  client: GitHubClient,
+  repoFullName: string,
+  pullRequestNumber: number,
+  title: string
+): Promise<void> {
+  await client.patch(`/repos/${repoFullName}/pulls/${pullRequestNumber}`, {
+    title,
+  });
 }

@@ -8,10 +8,12 @@ import { resolve } from 'path';
 import { loadConfig } from './config';
 import type { Config } from './config/schema';
 import { GitHubClient } from './github/client';
+import { createProvider } from './providers';
+import { ReviewOrchestrator } from './review/orchestrator';
 import { createCliContext } from './runtime/cli-context';
 import { routeEvent } from './runtime/event-router';
 import { createLogger } from './runtime/logger';
-import type { GitHubEvent, SupportedEventName } from './runtime/types';
+import type { GitHubEvent, PullRequestEvent, SupportedEventName } from './runtime/types';
 
 export interface CliOptions {
   event?: SupportedEventName | string;
@@ -150,8 +152,36 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
     baseUrl: config.GITHUB_API_URL,
     debug: config.DEBUG,
   });
+  const provider = createProvider({
+    provider: config.LLM_PROVIDER,
+    model: config.LLM_MODEL,
+    apiKey: config.LLM_API_KEY,
+    baseUrl: config.LLM_BASE_URL,
+  });
 
   const result = await routeEvent(event, options.event, client);
+
+  let output: unknown = result;
+
+  if (
+    result.outcome.type === 'review' &&
+    options.event === 'pull_request' &&
+    'pull_request' in event
+  ) {
+    const orchestrator = new ReviewOrchestrator({
+      client,
+      provider,
+      config,
+      logger,
+      dryRun: context.isDryRun,
+    });
+
+    output = await orchestrator.runPullRequestReview({
+      repoFullName: event.repository.full_name,
+      pullRequestNumber: (event as PullRequestEvent).pull_request.number,
+      forceFullReview: result.outcome.fullMode,
+    });
+  }
 
   logger.info('CLI run completed', {
     outcome: result.outcome.type,
@@ -159,7 +189,7 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
   });
 
   if (options.output) {
-    writeFileSync(resolve(process.cwd(), options.output), JSON.stringify(result, null, 2), 'utf8');
+    writeFileSync(resolve(process.cwd(), options.output), JSON.stringify(output, null, 2), 'utf8');
     logger.info('Wrote CLI output', { reason: options.output });
   }
 }

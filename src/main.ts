@@ -6,10 +6,12 @@
 import { readFileSync } from 'fs';
 import { loadConfig } from './config';
 import { GitHubClient } from './github/client';
+import { createProvider } from './providers';
+import { ReviewOrchestrator } from './review/orchestrator';
 import { createActionContext } from './runtime/action-context';
 import { routeEvent } from './runtime/event-router';
 import { createLogger } from './runtime/logger';
-import type { GitHubEvent } from './runtime/types';
+import type { GitHubEvent, PullRequestEvent } from './runtime/types';
 
 export async function main(): Promise<void> {
   const eventName = process.env.GITHUB_EVENT_NAME;
@@ -45,8 +47,38 @@ export async function main(): Promise<void> {
     baseUrl: config.GITHUB_API_URL,
     debug: config.DEBUG,
   });
+  const provider = createProvider({
+    provider: config.LLM_PROVIDER,
+    model: config.LLM_MODEL,
+    apiKey: config.LLM_API_KEY,
+    baseUrl: config.LLM_BASE_URL,
+  });
 
   const result = await routeEvent(event, eventName, client);
+
+  if (result.outcome.type === 'review' && eventName === 'pull_request' && 'pull_request' in event) {
+    const orchestrator = new ReviewOrchestrator({
+      client,
+      provider,
+      config,
+      logger,
+      dryRun: false,
+    });
+    const reviewResult = await orchestrator.runPullRequestReview({
+      repoFullName: event.repository.full_name,
+      pullRequestNumber: (event as PullRequestEvent).pull_request.number,
+      forceFullReview: result.outcome.fullMode,
+    });
+
+    logger.info('Automatic review finished', {
+      reviewMode: reviewResult.reviewMode,
+      commitCount: reviewResult.commitCount,
+      fileCount: reviewResult.fileCount,
+      submittedCommentCount: reviewResult.inlineFindings.length,
+      skippedCommentCount: reviewResult.skippedFindingCount,
+      summarySuccess: Boolean(reviewResult.summary),
+    });
+  }
 
   logger.info('Action run completed', {
     outcome: result.outcome.type,
