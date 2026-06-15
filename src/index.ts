@@ -4,10 +4,13 @@
  */
 
 export * from './config';
+export * from './contracts/provider';
 export * from './events/handlers';
 export * from './github/client';
 export * from './github/pull-requests';
 export * from './main';
+export * from './providers';
+export * from './prompts/schemas';
 export * from './runtime/action-context';
 export * from './runtime/cli-context';
 export * from './runtime/event-router';

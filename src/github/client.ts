@@ -31,7 +31,7 @@ export class GitHubClient {
       retry: {
         doNotRetry: [400, 401, 403, 404],
       },
-      throttling: {
+      throttle: {
         onRateLimit: (retryAfter: number, requestOptions: ThrottledRequestOptions) => {
           console.warn(
             `GitHub API rate limit for ${requestOptions.method} ${requestOptions.url}; retrying after ${retryAfter}s.`

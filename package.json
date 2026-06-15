@@ -35,9 +35,12 @@
     "dev:review-comment": "node scripts/run-dev.js pull_request_review_comment payloads/pull-request-review-comment-created.json"
   },
   "dependencies": {
+    "@ai-sdk/openai-compatible": "^2.0.50",
     "@octokit/core": "^4.2.4",
     "@octokit/plugin-retry": "^3.0.9",
-    "@octokit/plugin-throttling": "^4.1.1"
+    "@octokit/plugin-throttling": "^4.1.1",
+    "ai": "^6.0.205",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
