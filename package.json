@@ -34,6 +34,11 @@
     "dev:issue-comment": "node scripts/run-dev.js issue_comment payloads/issue-comment-created.json",
     "dev:review-comment": "node scripts/run-dev.js pull_request_review_comment payloads/pull-request-review-comment-created.json"
   },
+  "dependencies": {
+    "@octokit/core": "^4.2.4",
+    "@octokit/plugin-retry": "^3.0.9",
+    "@octokit/plugin-throttling": "^4.1.1"
+  },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.9.3",

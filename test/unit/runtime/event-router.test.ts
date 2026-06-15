@@ -125,9 +125,10 @@ const reviewCommentEvent: ReviewCommentEvent = {
 };
 
 const createMockClient = (prData: unknown) => {
-  const mockClient = new GitHubClient({ baseUrl: 'https://api.github.com' });
-  mockClient.get = vi.fn().mockResolvedValue(prData);
-  return mockClient;
+  // Create a mock client without triggering the throttling plugin
+  return {
+    get: vi.fn().mockResolvedValue(prData),
+  } as unknown as GitHubClient;
 };
 
 describe('isSupportedEvent', () => {

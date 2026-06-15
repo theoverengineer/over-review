@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { GitHubClient } from '../../../src/github/client';
 import {
   extractPullRequestIdentity,
   fetchPullRequestIdentity,
 } from '../../../src/github/pull-requests';
+import type { GitHubClient } from '../../../src/github/client';
 import type { RepositoryInfo } from '../../../src/runtime/types';
 
 const repository: RepositoryInfo = {
@@ -38,16 +38,18 @@ describe('extractPullRequestIdentity', () => {
 
 describe('fetchPullRequestIdentity', () => {
   it('rejects PR URLs outside the event repository path', async () => {
-    const client = new GitHubClient({ baseUrl: 'https://api.github.com' });
-    client.get = vi.fn();
+    // Create a mock client without triggering the throttling plugin
+    const mockClient = {
+      get: vi.fn().mockResolvedValue(null),
+    } as unknown as GitHubClient;
 
     const identity = await fetchPullRequestIdentity(
-      client,
+      mockClient,
       'https://api.github.com/repos/other/repo/pulls/123',
       repository
     );
 
     expect(identity).toBeNull();
-    expect(client.get).not.toHaveBeenCalled();
+    expect(mockClient.get).not.toHaveBeenCalled();
   });
 });

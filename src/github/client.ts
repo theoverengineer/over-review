@@ -1,64 +1,88 @@
 /**
- * Minimal GitHub API client using fetch.
+ * GitHub API client using Octokit with retry and throttling.
  * @packageDocumentation
  */
 
-/**
- * Options for the GitHub client.
- */
+import { Octokit } from '@octokit/core';
+import { retry } from '@octokit/plugin-retry';
+import { throttling } from '@octokit/plugin-throttling';
+
 export interface GitHubClientOptions {
-  /** GitHub API base URL (default: https://api.github.com) */
   baseUrl?: string;
-  /** GitHub personal access token (optional, for authenticated requests) */
   token?: string;
+  debug?: boolean;
 }
 
-/**
- * GitHub client for making API requests.
- */
+interface ThrottledRequestOptions {
+  method: string;
+  url: string;
+}
+
+const OverReviewOctokit = Octokit.plugin(retry, throttling);
+
 export class GitHubClient {
-  private readonly baseUrl: string;
-  private readonly token?: string;
+  private readonly client: InstanceType<typeof OverReviewOctokit>;
 
   constructor(options: GitHubClientOptions = {}) {
-    this.baseUrl = options.baseUrl || 'https://api.github.com';
-    this.token = options.token;
-  }
-
-  /**
-   * Make a GET request to the GitHub API.
-   * @param path - API path (e.g., '/repos/owner/repo/pulls/123')
-   * @returns Parsed JSON response
-   */
-  async get<T>(path: string): Promise<T> {
-    const url = `${this.baseUrl}${path}`;
-    const headers: Record<string, string> = {
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'over-review',
-    };
-
-    if (this.token) {
-      headers['Authorization'] = `token ${this.token}`;
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
+    this.client = new OverReviewOctokit({
+      auth: options.token,
+      baseUrl: options.baseUrl ?? 'https://api.github.com',
+      log: options.debug ? console : undefined,
+      retry: {
+        doNotRetry: [400, 401, 403, 404],
+      },
+      throttling: {
+        onRateLimit: (retryAfter: number, requestOptions: ThrottledRequestOptions) => {
+          console.warn(
+            `GitHub API rate limit for ${requestOptions.method} ${requestOptions.url}; retrying after ${retryAfter}s.`
+          );
+          return true;
+        },
+        onSecondaryRateLimit: (retryAfter: number, requestOptions: ThrottledRequestOptions) => {
+          console.warn(
+            `GitHub API secondary rate limit for ${requestOptions.method} ${requestOptions.url}; retrying after ${retryAfter}s.`
+          );
+          return true;
+        },
+      },
     });
-
-    if (!response.ok) {
-      let errorBody = '';
-      try {
-        errorBody = await response.text();
-      } catch {
-        // Ignore text parsing errors
-      }
-
-      throw new Error(
-        `GitHub API error ${response.status}: ${response.statusText} (${errorBody || 'No body'})`
-      );
-    }
-
-    return (await response.json()) as T;
   }
+
+  async get<T>(path: string): Promise<T> {
+    return this.request<T>('GET', path);
+  }
+
+  async post<T>(path: string, parameters?: Record<string, unknown>): Promise<T> {
+    return this.request<T>('POST', path, parameters);
+  }
+
+  async patch<T>(path: string, parameters?: Record<string, unknown>): Promise<T> {
+    return this.request<T>('PATCH', path, parameters);
+  }
+
+  async delete<T>(path: string, parameters?: Record<string, unknown>): Promise<T> {
+    return this.request<T>('DELETE', path, parameters);
+  }
+
+  private async request<T>(
+    method: 'GET' | 'POST' | 'PATCH' | 'DELETE',
+    path: string,
+    parameters?: Record<string, unknown>
+  ): Promise<T> {
+    try {
+      const response = await this.client.request(`${method} ${path}`, parameters);
+      return response.data as T;
+    } catch (error) {
+      throw createGitHubClientError(error);
+    }
+  }
+}
+
+function createGitHubClientError(error: unknown): Error {
+  if (error instanceof Error) {
+    const status = 'status' in error ? error.status : undefined;
+    return new Error(`GitHub API error ${status ?? 'unknown'}: ${error.message}`);
+  }
+
+  return new Error(`GitHub API error: ${String(error)}`);
 }

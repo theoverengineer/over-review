@@ -1,76 +1,82 @@
 /**
- * over-review - GitHub Action entrypoint
- * Handles GitHub events and routes them to appropriate handlers
+ * over-review GitHub Action entrypoint.
  * @packageDocumentation
  */
 
 import { readFileSync } from 'fs';
+import { loadConfig } from './config';
 import { GitHubClient } from './github/client';
+import { createActionContext } from './runtime/action-context';
 import { routeEvent } from './runtime/event-router';
+import { createLogger } from './runtime/logger';
 import type { GitHubEvent } from './runtime/types';
 
-/**
- * Main entrypoint for the GitHub Action.
- * Reads the event from GITHUB_EVENT_PATH and routes it appropriately.
- */
 export async function main(): Promise<void> {
   const eventName = process.env.GITHUB_EVENT_NAME;
   const eventPath = process.env.GITHUB_EVENT_PATH;
 
   if (!eventName) {
-    console.error('Error: GITHUB_EVENT_NAME is not set');
-    process.exit(1);
+    throw new Error('GITHUB_EVENT_NAME is not set.');
   }
 
   if (!eventPath) {
-    console.error('Error: GITHUB_EVENT_PATH is not set');
-    process.exit(1);
+    throw new Error('GITHUB_EVENT_PATH is not set.');
   }
 
-  let event: GitHubEvent;
-  try {
-    const eventRaw = readFileSync(eventPath, 'utf8');
-    event = JSON.parse(eventRaw) as GitHubEvent;
-  } catch (error) {
-    console.error(`Error reading event file ${eventPath}:`, error);
-    process.exit(1);
-  }
+  const config = loadConfig();
+  const event = loadEventPayload(eventPath);
+  const context = createActionContext(eventName, event);
+  const logger = createLogger(
+    {
+      eventName,
+      repo: context.repo,
+      prNumber: context.prNumber,
+      dryRun: false,
+      provider: config.LLM_PROVIDER,
+      model: config.LLM_MODEL,
+    },
+    config.DEBUG ? 'debug' : 'info'
+  );
 
-  // Create a GitHub client if a token is available (for PR identity lookup)
-  const client = process.env.GITHUB_TOKEN
-    ? new GitHubClient({ token: process.env.GITHUB_TOKEN })
-    : undefined;
+  logger.info('Starting action run');
+
+  const client = new GitHubClient({
+    token: config.GITHUB_TOKEN,
+    baseUrl: config.GITHUB_API_URL,
+    debug: config.DEBUG,
+  });
 
   const result = await routeEvent(event, eventName, client);
-  logOutcome(result.outcome);
+
+  logger.info('Action run completed', {
+    outcome: result.outcome.type,
+    reason: result.outcome.reason,
+  });
 
   if (!result.handled) {
-    console.warn(`Warning: Event ${eventName} was not handled`);
+    logger.warn('Event was not handled', {
+      outcome: result.outcome.type,
+      reason: result.outcome.reason,
+    });
   }
 }
 
-/**
- * Log the outcome of event processing.
- */
-function logOutcome(outcome: {
-  type: string;
-  reason?: string;
-  prNumber?: number;
-  actor?: string;
-}): void {
-  console.log(
-    JSON.stringify({
-      outcome: outcome.type,
-      prNumber: outcome.prNumber,
-      actor: outcome.actor,
-      reason: outcome.reason,
-    })
-  );
+function loadEventPayload(eventPath: string): GitHubEvent {
+  try {
+    return JSON.parse(readFileSync(eventPath, 'utf8')) as GitHubEvent;
+  } catch (error) {
+    throw Object.assign(
+      new Error(
+        `Failed to read GitHub event payload from ${eventPath}: ${error instanceof Error ? error.message : String(error)}`
+      ),
+      { cause: error }
+    );
+  }
 }
 
 if (require.main === module) {
   void main().catch((error: unknown) => {
-    console.error(error);
+    console.error(error instanceof Error ? error.message : String(error));
     process.exitCode = 1;
   });
 }
