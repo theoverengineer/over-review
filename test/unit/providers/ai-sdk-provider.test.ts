@@ -237,6 +237,46 @@ describe('providers/ai-sdk-provider', () => {
       name: 'custom-openai-compatible',
       apiKey: 'test-key',
       baseURL: 'https://example.test/v1',
+      supportsStructuredOutputs: true,
+    });
+    expect(modelFactory).toHaveBeenCalledWith('gpt-4o-mini');
+  });
+
+  it('disables structured outputs when explicitly configured', async () => {
+    const generateTextMock = vi.fn().mockResolvedValue({
+      output: {
+        title: 'Custom endpoint',
+        description: 'Uses the custom base URL path.',
+      },
+      text: '{"title":"Custom endpoint","description":"Uses the custom base URL path."}',
+    });
+    const modelFactory = vi.fn().mockReturnValue('custom-model-instance');
+    const createOpenAICompatibleMock = vi.fn().mockReturnValue(modelFactory);
+
+    const provider = new AISDKProvider(
+      {
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+        baseUrl: 'https://example.test/v1',
+        structuredOutputs: false,
+      },
+      {
+        generateText: generateTextMock,
+        createOpenAICompatible: createOpenAICompatibleMock,
+        sleep: async () => undefined,
+      }
+    );
+
+    await provider.runInference({
+      prompt: 'Summarize the PR.',
+      schema: summarySchema,
+    });
+
+    expect(createOpenAICompatibleMock).toHaveBeenCalledWith({
+      name: 'custom-openai-compatible',
+      apiKey: 'test-key',
+      baseURL: 'https://example.test/v1',
+      supportsStructuredOutputs: false,
     });
     expect(modelFactory).toHaveBeenCalledWith('gpt-4o-mini');
   });
@@ -281,6 +321,136 @@ describe('providers/ai-sdk-provider', () => {
 
     expect(result.output.title).toBe('Default timeout');
     expect(generateTextMock).toHaveBeenCalled();
+  });
+
+  it('skips structured output and uses fallback for custom endpoint with structuredOutputs: false', async () => {
+    const generateTextMock = vi.fn().mockResolvedValue({
+      text: '```json\n{"title":"Fallback title","description":"Recovered from plain text."}\n```',
+    });
+    const modelFactory = vi.fn().mockReturnValue('custom-model-instance');
+    const createOpenAICompatibleMock = vi.fn().mockReturnValue(modelFactory);
+
+    const provider = new AISDKProvider(
+      {
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+        baseUrl: 'https://example.test/v1',
+        structuredOutputs: false,
+      },
+      {
+        generateText: generateTextMock,
+        createOpenAICompatible: createOpenAICompatibleMock,
+        sleep: async () => undefined,
+      }
+    );
+
+    const result = await provider.runInference({
+      prompt: 'Summarize the PR.',
+      schema: summarySchema,
+    });
+
+    // Should only call generateText once (direct fallback, no structured attempt)
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    // Should NOT have output property in the generateText call
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.not.objectContaining({
+        output: expect.any(Object),
+      })
+    );
+    expect(result.output).toEqual({
+      title: 'Fallback title',
+      description: 'Recovered from plain text.',
+    });
+    // createOpenAICompatible should still be called with supportsStructuredOutputs: false
+    expect(createOpenAICompatibleMock).toHaveBeenCalledWith({
+      name: 'custom-openai-compatible',
+      apiKey: 'test-key',
+      baseURL: 'https://example.test/v1',
+      supportsStructuredOutputs: false,
+    });
+  });
+
+  it('uses structured output for custom endpoint with structuredOutputs: true', async () => {
+    const generateTextMock = vi.fn().mockResolvedValue({
+      output: {
+        title: 'Custom endpoint structured',
+        description: 'Uses structured outputs.',
+      },
+      text: '{"title":"Custom endpoint structured","description":"Uses structured outputs."}',
+    });
+    const modelFactory = vi.fn().mockReturnValue('custom-model-instance');
+    const createOpenAICompatibleMock = vi.fn().mockReturnValue(modelFactory);
+
+    const provider = new AISDKProvider(
+      {
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+        baseUrl: 'https://example.test/v1',
+        structuredOutputs: true,
+      },
+      {
+        generateText: generateTextMock,
+        createOpenAICompatible: createOpenAICompatibleMock,
+        sleep: async () => undefined,
+      }
+    );
+
+    const result = await provider.runInference({
+      prompt: 'Summarize the PR.',
+      schema: summarySchema,
+    });
+
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    // Should have output property in the generateText call
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.any(Object),
+      })
+    );
+    expect(result.output).toEqual({
+      title: 'Custom endpoint structured',
+      description: 'Uses structured outputs.',
+    });
+  });
+
+  it('uses structured output for official provider (no baseUrl) even with structuredOutputs: false', async () => {
+    const generateTextMock = vi.fn().mockResolvedValue({
+      output: {
+        title: 'Official provider',
+        description: 'Uses structured outputs.',
+      },
+      text: '{"title":"Official provider","description":"Uses structured outputs."}',
+    });
+
+    const provider = new AISDKProvider(
+      {
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+        structuredOutputs: false,
+      },
+      {
+        generateText: generateTextMock,
+        sleep: async () => undefined,
+      }
+    );
+
+    const result = await provider.runInference({
+      prompt: 'Summarize the PR.',
+      schema: summarySchema,
+    });
+
+    // For official providers, structured output is still attempted even when structuredOutputs is false
+    // This preserves the existing retry/fallback behavior
+    expect(generateTextMock).toHaveBeenCalledTimes(1);
+    expect(generateTextMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        output: expect.any(Object),
+      })
+    );
+    expect(result.output).toEqual({
+      title: 'Official provider',
+      description: 'Uses structured outputs.',
+    });
   });
 });
 

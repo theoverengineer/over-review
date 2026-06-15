@@ -58,6 +58,7 @@ export async function main(): Promise<void> {
     model: config.LLM_MODEL,
     apiKey: config.LLM_API_KEY,
     baseUrl: config.LLM_BASE_URL,
+    structuredOutputs: config.LLM_STRUCTURED_OUTPUTS,
   });
 
   const result = await routeEvent(event, eventName, client);

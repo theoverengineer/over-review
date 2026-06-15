@@ -13,6 +13,7 @@ export interface Config {
   LLM_BASE_URL?: string;
   STYLE_GUIDE_RULES?: string;
   LLM_TIMEOUT_MS?: number;
+  LLM_STRUCTURED_OUTPUTS?: boolean;
   GITHUB_API_URL: string;
   GITHUB_SERVER_URL: string;
   DEBUG: boolean;
@@ -74,6 +75,13 @@ export function validateConfig(config: Partial<Config>): ConfigValidationIssue[]
     });
   }
 
+  if (config.LLM_STRUCTURED_OUTPUTS !== undefined && !isValidBoolean(config.LLM_STRUCTURED_OUTPUTS)) {
+    issues.push({
+      field: 'LLM_STRUCTURED_OUTPUTS',
+      message: 'LLM_STRUCTURED_OUTPUTS must be a boolean value (true/false, yes/no, 1/0).',
+    });
+  }
+
   return issues;
 }
 
@@ -101,6 +109,10 @@ export function parseBoolean(value: string | undefined): boolean | undefined {
   }
 
   return undefined;
+}
+
+function isValidBoolean(value: unknown): value is boolean {
+  return typeof value === 'boolean';
 }
 
 export function parseTrimmedString(value: string | undefined): string | undefined {

@@ -12,6 +12,7 @@ export interface ProviderConfig {
   model: string;
   apiKey: string;
   baseUrl?: string;
+  structuredOutputs?: boolean;
 }
 
 export function createProvider(config: ProviderConfig): AIProvider {
@@ -51,6 +52,7 @@ export function createProvider(config: ProviderConfig): AIProvider {
     model: config.model,
     apiKey: config.apiKey,
     baseUrl: config.baseUrl,
+    structuredOutputs: config.structuredOutputs,
   });
 }
 

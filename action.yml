@@ -24,6 +24,31 @@ inputs:
     description: 'Force full review instead of incremental'
     required: false
     default: 'false'
+  llm-structured-outputs:
+    description: 'Enable structured JSON outputs (set to false for custom OpenAI-compatible endpoints without schema support)'
+    required: false
+    default: 'true'
+  style-guide-rules:
+    description: 'Additional repository-specific review guidance text appended to the review prompt'
+    required: false
+  llm-timeout-ms:
+    description: 'Timeout in milliseconds for LLM requests (0 to disable)'
+    required: false
+    default: '30000'
+  github-api-url:
+    description: 'GitHub API URL (for GitHub Enterprise or custom endpoints)'
+    required: false
+  github-server-url:
+    description: 'GitHub server URL (for GitHub Enterprise)'
+    required: false
+  debug:
+    description: 'Enable debug logging'
+    required: false
+    default: 'false'
+  dry-run:
+    description: 'Skip GitHub write operations'
+    required: false
+    default: 'false'
 
 runs:
   using: 'node20'

@@ -60,5 +60,31 @@ describe('providers/index', () => {
         })
       ).toThrow(ConfigurationError);
     });
+
+    it('creates a provider with structured outputs enabled', () => {
+      const config: ProviderConfig = {
+        provider: 'ai-sdk',
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+        baseUrl: 'https://custom.openai.com/v1',
+        structuredOutputs: true,
+      };
+
+      const provider = createProvider(config);
+      expect(provider).toBeInstanceOf(AISDKProvider);
+    });
+
+    it('creates a provider with structured outputs disabled', () => {
+      const config: ProviderConfig = {
+        provider: 'ai-sdk',
+        model: 'gpt-4o-mini',
+        apiKey: 'test-key',
+        baseUrl: 'https://custom.openai.com/v1',
+        structuredOutputs: false,
+      };
+
+      const provider = createProvider(config);
+      expect(provider).toBeInstanceOf(AISDKProvider);
+    });
   });
 });

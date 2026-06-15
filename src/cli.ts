@@ -72,6 +72,10 @@ export function parseArgs(args: string[]): CliOptions {
         options.cliConfig.LLM_TIMEOUT_MS = Number(nextValue);
         index += 1;
         break;
+      case '--llm-structured-outputs':
+        options.cliConfig.LLM_STRUCTURED_OUTPUTS = parseBooleanFlag(nextValue);
+        index += 1;
+        break;
       case '--github-api-url':
         options.cliConfig.GITHUB_API_URL = nextValue;
         index += 1;
@@ -93,6 +97,9 @@ export function parseArgs(args: string[]): CliOptions {
       case '--debug':
         options.cliConfig.DEBUG = true;
         break;
+      case '--no-structured-outputs':
+        options.cliConfig.LLM_STRUCTURED_OUTPUTS = false;
+        break;
       case '--list-prs':
         options.listPrs = true;
         break;
@@ -107,6 +114,17 @@ export function parseArgs(args: string[]): CliOptions {
   }
 
   return options;
+}
+
+function parseBooleanFlag(value: string): boolean {
+  const normalized = value.trim().toLowerCase();
+  if (['true', 'yes', '1', 'on'].includes(normalized)) {
+    return true;
+  }
+  if (['false', 'no', '0', 'off'].includes(normalized)) {
+    return false;
+  }
+  throw new Error(`Invalid boolean value: "${value}". Expected true/false, yes/no, 1/0, on/off.`);
 }
 
 export async function runCli(args: string[] = process.argv.slice(2)): Promise<void> {
@@ -162,6 +180,7 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
     model: config.LLM_MODEL,
     apiKey: config.LLM_API_KEY,
     baseUrl: config.LLM_BASE_URL,
+    structuredOutputs: config.LLM_STRUCTURED_OUTPUTS,
   });
 
   const result = await routeEvent(event, options.event, client);
@@ -267,6 +286,8 @@ Options:
   --llm-api-key <key>
   --llm-base-url <url>
   --llm-timeout-ms <ms>
+  --llm-structured-outputs <true|false>
+  --no-structured-outputs
   --github-api-url <url>
   --github-server-url <url>
   --style-guide-rules <rules>

@@ -25,3 +25,12 @@
 - Use any testing tools, libraries available to the project for testing your changes
 - Never assume your changes simply work, always test!
 - If the project does not have any testing tools, scripts, MCP tools, skills, etc. available for testing, ask the user whether testing should be skipped.
+
+## VALIDATION
+
+- After any code changes be sure to verify all code changes with the following commands
+  - npm run lint
+  - npm run format:check
+  - npm run typecheck
+  - npm run test
+  - npm run build

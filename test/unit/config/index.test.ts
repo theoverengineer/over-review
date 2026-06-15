@@ -164,6 +164,85 @@ describe('loadConfig', () => {
       })
     ).toThrow(/LLM_TIMEOUT_MS.*non-negative integer/);
   });
+
+  it('accepts structured outputs from environment variable', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+        LLM_STRUCTURED_OUTPUTS: 'true',
+      },
+    });
+
+    expect(config.LLM_STRUCTURED_OUTPUTS).toBe(true);
+  });
+
+  it('accepts disabled structured outputs from environment variable', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+        LLM_STRUCTURED_OUTPUTS: 'false',
+      },
+    });
+
+    expect(config.LLM_STRUCTURED_OUTPUTS).toBe(false);
+  });
+
+  it('accepts structured outputs from action input', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+        [toActionInputEnvName('llm-structured-outputs')]: 'true',
+      },
+    });
+
+    expect(config.LLM_STRUCTURED_OUTPUTS).toBe(true);
+  });
+
+  it('accepts structured outputs from CLI', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+      cli: {
+        LLM_STRUCTURED_OUTPUTS: false,
+      },
+    });
+
+    expect(config.LLM_STRUCTURED_OUTPUTS).toBe(false);
+  });
+
+  it('defaults to undefined (provider default) when not configured', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+    });
+
+    expect(config.LLM_STRUCTURED_OUTPUTS).toBeUndefined();
+  });
+
+  it('rejects invalid structured outputs values', () => {
+    expect(() =>
+      loadConfig({
+        env: {
+          GITHUB_TOKEN: 'token',
+          LLM_MODEL: 'model',
+          LLM_API_KEY: 'key',
+          LLM_STRUCTURED_OUTPUTS: 'invalid',
+        },
+      })
+    ).toThrow(/LLM_STRUCTURED_OUTPUTS.*true\/false/);
+  });
 });
 
 describe('loadActionInputs', () => {

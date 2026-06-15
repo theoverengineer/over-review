@@ -20,6 +20,14 @@ export interface AISDKProviderOptions {
   model: string;
   apiKey: string;
   baseUrl?: string;
+  /**
+   * Whether to use structured outputs (JSON mode) for custom OpenAI-compatible endpoints.
+   * When false, custom endpoints skip schema-based structured output requests and fall back to
+   * plain text JSON generation/parsing instead.
+   * Official providers continue using structured outputs through the AI SDK.
+   * @default true
+   */
+  structuredOutputs?: boolean;
 }
 
 export interface AISDKProviderDependencies {
@@ -34,6 +42,7 @@ export class AISDKProvider {
 
   private readonly apiKey: string;
   private readonly baseUrl?: string;
+  private readonly structuredOutputs: boolean;
   private readonly generateTextImpl: GenerateTextFn;
   private readonly createOpenAICompatibleImpl: OpenAICompatibleFactory;
   private readonly sleepImpl: (ms: number) => Promise<void>;
@@ -42,6 +51,7 @@ export class AISDKProvider {
     this.model = options.model;
     this.apiKey = options.apiKey;
     this.baseUrl = options.baseUrl;
+    this.structuredOutputs = options.structuredOutputs ?? true;
     this.generateTextImpl = dependencies.generateText ?? generateText;
     this.createOpenAICompatibleImpl = dependencies.createOpenAICompatible ?? createOpenAICompatible;
     this.sleepImpl = dependencies.sleep ?? defaultSleep;
@@ -53,6 +63,9 @@ export class AISDKProvider {
     const timeoutMs = request.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxAttempts = Math.max(1, (request.maxRetries ?? DEFAULT_MAX_RETRIES) + 1);
 
+    // For custom endpoints with structured outputs disabled, skip structured inference entirely
+    const skipStructuredInference = this.baseUrl !== undefined && this.structuredOutputs === false;
+
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const controller = new AbortController();
       let timeoutId: NodeJS.Timeout | undefined;
@@ -63,7 +76,9 @@ export class AISDKProvider {
       }
 
       try {
-        const result = await this.runStructuredInference(request, controller);
+        const result = skipStructuredInference
+          ? await this.runFallbackInference(request, controller)
+          : await this.runStructuredInference(request, controller);
         clearTimeout(timeoutId);
 
         return {
@@ -169,6 +184,7 @@ export class AISDKProvider {
       name: 'custom-openai-compatible',
       apiKey: this.apiKey,
       baseURL: this.baseUrl,
+      supportsStructuredOutputs: this.structuredOutputs,
     })(this.model) as ModelDefinition;
   }
 }

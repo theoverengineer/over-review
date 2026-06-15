@@ -34,6 +34,7 @@ const ACTION_INPUT_MAP: Array<[keyof Config, string]> = [
   ['LLM_BASE_URL', 'llm-base-url'],
   ['STYLE_GUIDE_RULES', 'style-guide-rules'],
   ['LLM_TIMEOUT_MS', 'llm-timeout-ms'],
+  ['LLM_STRUCTURED_OUTPUTS', 'llm-structured-outputs'],
   ['GITHUB_API_URL', 'github-api-url'],
   ['GITHUB_SERVER_URL', 'github-server-url'],
   ['FULL_REVIEW', 'full-mode'],
@@ -71,6 +72,7 @@ export function applyDefaults(config: ConfigPatch): Config {
     LLM_BASE_URL: config.LLM_BASE_URL,
     STYLE_GUIDE_RULES: config.STYLE_GUIDE_RULES,
     LLM_TIMEOUT_MS: config.LLM_TIMEOUT_MS ?? 30_000,
+    LLM_STRUCTURED_OUTPUTS: config.LLM_STRUCTURED_OUTPUTS,
     GITHUB_API_URL: config.GITHUB_API_URL ?? DEFAULT_GITHUB_API_URL,
     GITHUB_SERVER_URL: config.GITHUB_SERVER_URL ?? DEFAULT_GITHUB_SERVER_URL,
     DEBUG: config.DEBUG ?? false,
@@ -97,6 +99,10 @@ export function loadEnvironmentVariables(env: NodeJS.ProcessEnv = process.env): 
 
   if (env.LLM_TIMEOUT_MS !== undefined) {
     patch.LLM_TIMEOUT_MS = parseTimeoutOrThrow(env.LLM_TIMEOUT_MS);
+  }
+
+  if (env.LLM_STRUCTURED_OUTPUTS !== undefined) {
+    patch.LLM_STRUCTURED_OUTPUTS = parseBooleanOrThrow(env.LLM_STRUCTURED_OUTPUTS, 'LLM_STRUCTURED_OUTPUTS');
   }
 
   return patch;
@@ -189,8 +195,8 @@ function parseTimeoutOrThrow(value: string | undefined): number | undefined {
 }
 
 function assignConfigValue(patch: ConfigPatch, key: keyof Config, value: string): void {
-  if (key === 'DEBUG' || key === 'DRY_RUN' || key === 'FULL_REVIEW') {
-    const parsed = parseBoolean(value);
+  if (key === 'DEBUG' || key === 'DRY_RUN' || key === 'FULL_REVIEW' || key === 'LLM_STRUCTURED_OUTPUTS') {
+    const parsed = parseBooleanOrThrow(value, key);
 
     if (parsed !== undefined) {
       patch[key] = parsed as never;
@@ -216,4 +222,22 @@ function assignConfigValue(patch: ConfigPatch, key: keyof Config, value: string)
   }
 
   patch[key] = value as never;
+}
+
+function parseBooleanOrThrow(value: string, key: string): boolean | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim().toLowerCase();
+
+  if (['1', 'true', 'yes', 'on'].includes(normalized)) {
+    return true;
+  }
+
+  if (['0', 'false', 'no', 'off'].includes(normalized)) {
+    return false;
+  }
+
+  throw new Error(`Invalid ${key} value: "${value}". Expected true/false, yes/no, 1/0, on/off.`);
 }
