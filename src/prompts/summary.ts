@@ -16,6 +16,10 @@ export function buildSummaryPrompt(input: SummaryPromptInput): string {
   const prompt = [
     'You are reviewing a pull request summary.',
     'Return structured JSON only.',
+    'Use exactly these top-level keys: title, description, fileSummaries, changeTypes.',
+    'Each fileSummaries entry must use exactly these keys: path, summary.',
+    'changeTypes must only contain values from: feature, bugfix, refactor, docs, test, chore.',
+    'Do not use snake_case keys.',
     '',
     'Requirements:',
     '- Generate a concise, implementation-relevant title.',

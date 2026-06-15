@@ -4,7 +4,11 @@
  */
 
 import type { GitHubClient } from './client';
-import type { HiddenPayload, IssueCommentRecord } from '../contracts/review';
+import type {
+  HiddenPayload,
+  IssueCommentRecord,
+  PullRequestReviewCommentRecord,
+} from '../contracts/review';
 import {
   decodeHiddenState,
   hasOverviewSignature,
@@ -66,4 +70,32 @@ export async function updateOverviewComment(
   body: string
 ): Promise<void> {
   await client.patch(`/repos/${repoFullName}/issues/comments/${commentId}`, { body });
+}
+
+export async function listReviewComments(
+  client: GitHubClient,
+  repoFullName: string,
+  pullRequestNumber: number
+): Promise<PullRequestReviewCommentRecord[]> {
+  return client.get<PullRequestReviewCommentRecord[]>(
+    `/repos/${repoFullName}/pulls/${pullRequestNumber}/comments?per_page=100`
+  );
+}
+
+export async function createReviewCommentReply(
+  client: GitHubClient,
+  repoFullName: string,
+  pullRequestNumber: number,
+  inReplyTo: number,
+  body: string
+): Promise<number> {
+  const response = await client.post<{ id: number }>(
+    `/repos/${repoFullName}/pulls/${pullRequestNumber}/comments`,
+    {
+      body,
+      in_reply_to: inReplyTo,
+    }
+  );
+
+  return response.id;
 }

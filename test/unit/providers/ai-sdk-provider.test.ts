@@ -179,6 +179,31 @@ describe('providers/ai-sdk-provider', () => {
     expect(generateTextMock).toHaveBeenCalledTimes(2);
   });
 
+  it('falls back when structured generation returns schema-invalid output', async () => {
+    const generateTextMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        output: undefined,
+        text: 'Not a structured object',
+      })
+      .mockResolvedValueOnce({
+        text: '```json\n{"title":"Recovered title","description":"Recovered from fallback."}\n```',
+      });
+
+    const provider = createProvider(generateTextMock);
+    const result = await provider.runInference({
+      prompt: 'Summarize the PR.',
+      schema: summarySchema,
+    });
+
+    expect(result.output).toEqual({
+      title: 'Recovered title',
+      description: 'Recovered from fallback.',
+    });
+    expect(result.attempts).toBe(1);
+    expect(generateTextMock).toHaveBeenCalledTimes(2);
+  });
+
   it('uses the OpenAI-compatible provider when a base URL is configured', async () => {
     const generateTextMock = vi.fn().mockResolvedValue({
       output: {
@@ -214,6 +239,48 @@ describe('providers/ai-sdk-provider', () => {
       baseURL: 'https://example.test/v1',
     });
     expect(modelFactory).toHaveBeenCalledWith('gpt-4o-mini');
+  });
+
+  it('disables timeout when timeoutMs is 0', async () => {
+    const generateTextMock = vi.fn().mockResolvedValue({
+      output: {
+        title: 'No timeout',
+        description: 'Request completed without timeout.',
+      },
+      text: '{"title":"No timeout","description":"Request completed without timeout."}',
+    });
+
+    const provider = createProvider(generateTextMock);
+
+    // With timeoutMs: 0, the request should complete without any timeout
+    const result = await provider.runInference({
+      prompt: 'Summarize the PR.',
+      schema: summarySchema,
+      timeoutMs: 0,
+    });
+
+    expect(result.output.title).toBe('No timeout');
+    expect(generateTextMock).toHaveBeenCalled();
+  });
+
+  it('applies default timeout when timeoutMs is not specified', async () => {
+    const generateTextMock = vi.fn().mockResolvedValue({
+      output: {
+        title: 'Default timeout',
+        description: 'Request completed with default timeout.',
+      },
+      text: '{"title":"Default timeout","description":"Request completed with default timeout."}',
+    });
+
+    const provider = createProvider(generateTextMock);
+
+    const result = await provider.runInference({
+      prompt: 'Summarize the PR.',
+      schema: summarySchema,
+    });
+
+    expect(result.output.title).toBe('Default timeout');
+    expect(generateTextMock).toHaveBeenCalled();
   });
 });
 

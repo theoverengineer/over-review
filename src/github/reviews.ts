@@ -24,12 +24,14 @@ export async function submitReview(
   comments: DraftInlineComment[],
   needsAttention: boolean
 ): Promise<SubmittedReview> {
+  const reviewEvent = needsAttention ? 'REQUEST_CHANGES' : 'COMMENT';
+
   try {
     const response = await client.post<{ id: number; comments?: Array<{ id: number }> }>(
       `/repos/${repoFullName}/pulls/${pullRequestNumber}/reviews`,
       {
         body,
-        event: needsAttention ? 'REQUEST_CHANGES' : 'COMMENT',
+        event: reviewEvent,
         comments: comments.map((comment) => ({
           body: comment.body,
           path: comment.path,
@@ -43,12 +45,35 @@ export async function submitReview(
       reviewId: response.id,
       inlineCommentIds: response.comments?.map((comment) => comment.id) ?? [],
     };
-  } catch {
+  } catch (error) {
+    const fallbackEvent = shouldDowngradeReviewEvent(error, reviewEvent) ? 'COMMENT' : reviewEvent;
+
+    if (fallbackEvent !== reviewEvent) {
+      const response = await client.post<{ id: number; comments?: Array<{ id: number }> }>(
+        `/repos/${repoFullName}/pulls/${pullRequestNumber}/reviews`,
+        {
+          body,
+          event: fallbackEvent,
+          comments: comments.map((comment) => ({
+            body: comment.body,
+            path: comment.path,
+            line: comment.line,
+            side: 'RIGHT',
+          })),
+        }
+      );
+
+      return {
+        reviewId: response.id,
+        inlineCommentIds: response.comments?.map((comment) => comment.id) ?? [],
+      };
+    }
+
     const summaryReview = await client.post<{ id: number }>(
       `/repos/${repoFullName}/pulls/${pullRequestNumber}/reviews`,
       {
         body,
-        event: needsAttention ? 'REQUEST_CHANGES' : 'COMMENT',
+        event: fallbackEvent,
       }
     );
 
@@ -72,4 +97,12 @@ export async function submitReview(
       inlineCommentIds,
     };
   }
+}
+
+function shouldDowngradeReviewEvent(error: unknown, event: 'REQUEST_CHANGES' | 'COMMENT'): boolean {
+  if (event !== 'REQUEST_CHANGES' || !(error instanceof Error)) {
+    return false;
+  }
+
+  return error.message.toLowerCase().includes('can not request changes on your own pull request');
 }

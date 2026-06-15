@@ -33,6 +33,7 @@ const ACTION_INPUT_MAP: Array<[keyof Config, string]> = [
   ['LLM_API_KEY', 'llm-api-key'],
   ['LLM_BASE_URL', 'llm-base-url'],
   ['STYLE_GUIDE_RULES', 'style-guide-rules'],
+  ['LLM_TIMEOUT_MS', 'llm-timeout-ms'],
   ['GITHUB_API_URL', 'github-api-url'],
   ['GITHUB_SERVER_URL', 'github-server-url'],
   ['FULL_REVIEW', 'full-mode'],
@@ -69,6 +70,7 @@ export function applyDefaults(config: ConfigPatch): Config {
     LLM_PROVIDER: 'ai-sdk',
     LLM_BASE_URL: config.LLM_BASE_URL,
     STYLE_GUIDE_RULES: config.STYLE_GUIDE_RULES,
+    LLM_TIMEOUT_MS: config.LLM_TIMEOUT_MS ?? 30_000,
     GITHUB_API_URL: config.GITHUB_API_URL ?? DEFAULT_GITHUB_API_URL,
     GITHUB_SERVER_URL: config.GITHUB_SERVER_URL ?? DEFAULT_GITHUB_SERVER_URL,
     DEBUG: config.DEBUG ?? false,
@@ -79,7 +81,7 @@ export function applyDefaults(config: ConfigPatch): Config {
 }
 
 export function loadEnvironmentVariables(env: NodeJS.ProcessEnv = process.env): ConfigPatch {
-  return {
+  const patch: ConfigPatch = {
     GITHUB_TOKEN: parseTrimmedString(env.GITHUB_TOKEN),
     LLM_MODEL: parseTrimmedString(env.LLM_MODEL),
     LLM_API_KEY: parseTrimmedString(env.LLM_API_KEY),
@@ -92,6 +94,12 @@ export function loadEnvironmentVariables(env: NodeJS.ProcessEnv = process.env): 
     FULL_REVIEW: parseBoolean(env.FULL_REVIEW),
     REVIEW_MODE: parseReviewMode(env.REVIEW_MODE),
   };
+
+  if (env.LLM_TIMEOUT_MS !== undefined) {
+    patch.LLM_TIMEOUT_MS = parseTimeoutOrThrow(env.LLM_TIMEOUT_MS);
+  }
+
+  return patch;
 }
 
 export function loadActionInputs(env: NodeJS.ProcessEnv = process.env): ConfigPatch {
@@ -166,6 +174,20 @@ function parseReviewMode(value: string | undefined): ReviewMode | undefined {
   return undefined;
 }
 
+function parseTimeoutOrThrow(value: string | undefined): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+
+  const normalized = value.trim();
+
+  if (!/^\d+$/.test(normalized)) {
+    throw new Error(`Invalid LLM_TIMEOUT_MS value: "${value}". Must be a non-negative integer.`);
+  }
+
+  return Number(normalized);
+}
+
 function assignConfigValue(patch: ConfigPatch, key: keyof Config, value: string): void {
   if (key === 'DEBUG' || key === 'DRY_RUN' || key === 'FULL_REVIEW') {
     const parsed = parseBoolean(value);
@@ -184,6 +206,12 @@ function assignConfigValue(patch: ConfigPatch, key: keyof Config, value: string)
       patch[key] = parsed as never;
     }
 
+    return;
+  }
+
+  if (key === 'LLM_TIMEOUT_MS') {
+    const parsed = parseTimeoutOrThrow(value);
+    patch[key] = parsed as never;
     return;
   }
 

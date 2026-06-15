@@ -167,7 +167,7 @@ export class ReviewOrchestrator {
       schema: SummaryOutputSchema,
       schemaName: 'PullRequestSummary',
       schemaDescription: 'Structured pull request summary',
-      timeoutMs: 30_000,
+      timeoutMs: config.LLM_TIMEOUT_MS,
       maxRetries: 2,
     });
     const summary: PullRequestSummary = summaryResult.output;
@@ -191,7 +191,7 @@ export class ReviewOrchestrator {
       schema: ReviewOutputSchema,
       schemaName: 'PullRequestReview',
       schemaDescription: 'Structured pull request review',
-      timeoutMs: 30_000,
+      timeoutMs: config.LLM_TIMEOUT_MS,
       maxRetries: 2,
     });
     const rawFindings = reviewResult.output.findings.map((finding) => ({

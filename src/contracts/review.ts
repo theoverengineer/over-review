@@ -85,3 +85,26 @@ export interface PullRequestSnapshot {
   headSha: string;
   baseRepoFullName: string;
 }
+
+export interface PullRequestReviewCommentRecord {
+  id: number;
+  body: string;
+  user?: {
+    login: string;
+  };
+  path?: string;
+  line?: number | null;
+  original_line?: number | null;
+  diff_hunk?: string;
+  in_reply_to_id?: number | null;
+  created_at?: string;
+}
+
+export interface ReviewThread {
+  replyToCommentId: number;
+  path?: string;
+  line?: number | null;
+  diffHunk?: string;
+  comments: ThreadComment[];
+  latestComment: ThreadComment;
+}

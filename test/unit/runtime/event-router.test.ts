@@ -337,3 +337,50 @@ describe('parseManualReviewCommand', () => {
     expect(parseManualReviewCommand('looks good')).toBeNull();
   });
 });
+
+describe('CLI behavior for fork PRs', () => {
+  it('fork PR via pull_request event returns skip outcome', async () => {
+    const result = await routeEvent(forkPrEvent, 'pull_request');
+    expect(result.handled).toBe(true);
+    expect(result.outcome.type).toBe('skip');
+    expect(result.outcome.reason).toBe('Fork PR silently skipped');
+  });
+
+  it('fork PR via issue_comment event returns skip outcome', async () => {
+    // Use same repository as base PR but with fork PR data in mock
+    const forkIssueCommentEvent: IssueCommentEvent = {
+      ...authorizedReviewCommentEvent,
+      issue: {
+        ...authorizedReviewCommentEvent.issue,
+        number: 456,
+        pull_request: { url: 'https://api.github.com/repos/owner/repo/pulls/456' },
+      },
+      comment: {
+        ...authorizedReviewCommentEvent.comment!,
+        body: '/review',
+      },
+    };
+    // Mock returns fork PR data - head repo differs from base repo
+    const mockClient = createMockClient({
+      number: 456,
+      title: 'Fork PR',
+      head: {
+        sha: 'xyz789',
+        repo: { full_name: 'forker/repo', name: 'repo', owner: { login: 'forker', type: 'User' } },
+      },
+      base: {
+        sha: 'def456',
+        repo: {
+          full_name: 'owner/repo',
+          name: 'repo',
+          owner: { login: 'owner', type: 'Organization' },
+        },
+      },
+    });
+
+    const result = await routeEvent(forkIssueCommentEvent, 'issue_comment', mockClient);
+    expect(result.handled).toBe(true);
+    expect(result.outcome.type).toBe('skip');
+    expect(result.outcome.reason).toBe('Fork PR silently skipped');
+  });
+});

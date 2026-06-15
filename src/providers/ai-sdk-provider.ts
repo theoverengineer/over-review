@@ -55,7 +55,12 @@ export class AISDKProvider {
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      let timeoutId: NodeJS.Timeout | undefined;
+
+      // Only set up timeout if timeoutMs > 0
+      if (timeoutMs > 0) {
+        timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      }
 
       try {
         const result = await this.runStructuredInference(request, controller);
@@ -103,10 +108,20 @@ export class AISDKProvider {
         abortSignal: controller.signal,
       });
 
-      return {
-        output: validateOutput(request, result.output, this.name, this.model),
-        rawText: toOptionalText(result.text),
-      };
+      const rawText = toOptionalText(result.text);
+
+      try {
+        return {
+          output: validateOutput(request, result.output, this.name, this.model),
+          rawText,
+        };
+      } catch (error) {
+        if (error instanceof SchemaValidationError) {
+          return this.runFallbackInference(request, controller);
+        }
+
+        throw error;
+      }
     } catch (error) {
       if (shouldFallbackToText(error)) {
         return this.runFallbackInference(request, controller);

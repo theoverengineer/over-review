@@ -10,10 +10,11 @@ import type { Config } from './config/schema';
 import { GitHubClient } from './github/client';
 import { createProvider } from './providers';
 import { ReviewOrchestrator } from './review/orchestrator';
+import { ThreadReplyOrchestrator } from './threads/reply-orchestrator';
 import { createCliContext } from './runtime/cli-context';
 import { routeEvent } from './runtime/event-router';
 import { createLogger } from './runtime/logger';
-import type { GitHubEvent, PullRequestEvent, SupportedEventName } from './runtime/types';
+import type { GitHubEvent, SupportedEventName } from './runtime/types';
 
 export interface CliOptions {
   event?: SupportedEventName | string;
@@ -65,6 +66,10 @@ export function parseArgs(args: string[]): CliOptions {
         break;
       case '--llm-base-url':
         options.cliConfig.LLM_BASE_URL = nextValue;
+        index += 1;
+        break;
+      case '--llm-timeout-ms':
+        options.cliConfig.LLM_TIMEOUT_MS = Number(nextValue);
         index += 1;
         break;
       case '--github-api-url':
@@ -161,26 +166,63 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
 
   const result = await routeEvent(event, options.event, client);
 
+  if (result.outcome.type === 'skip' && result.outcome.reason === 'Fork PR silently skipped') {
+    logger.info('Fork PR silently skipped', {
+      prNumber: result.outcome.prNumber,
+    });
+    return;
+  }
+
   let output: unknown = result;
 
-  if (
-    result.outcome.type === 'review' &&
-    options.event === 'pull_request' &&
-    'pull_request' in event
-  ) {
-    const orchestrator = new ReviewOrchestrator({
-      client,
-      provider,
-      config,
-      logger,
-      dryRun: context.isDryRun,
-    });
+  if (result.outcome.type === 'review') {
+    if (options.event === 'pull_request' && 'pull_request' in event) {
+      const orchestrator = new ReviewOrchestrator({
+        client,
+        provider,
+        config,
+        logger,
+        dryRun: context.isDryRun,
+      });
 
-    output = await orchestrator.runPullRequestReview({
-      repoFullName: event.repository.full_name,
-      pullRequestNumber: (event as PullRequestEvent).pull_request.number,
-      forceFullReview: result.outcome.fullMode,
-    });
+      output = await orchestrator.runPullRequestReview({
+        repoFullName: event.repository.full_name,
+        pullRequestNumber: event.pull_request.number,
+        forceFullReview: result.outcome.fullMode,
+      });
+    } else if (options.event === 'issue_comment' && 'issue' in event) {
+      const orchestrator = new ReviewOrchestrator({
+        client,
+        provider,
+        config,
+        logger,
+        dryRun: context.isDryRun,
+      });
+
+      output = await orchestrator.runPullRequestReview({
+        repoFullName: event.repository.full_name,
+        pullRequestNumber: event.issue.number,
+        forceFullReview: result.outcome.fullMode,
+      });
+    } else if (
+      options.event === 'pull_request_review_comment' &&
+      'pull_request' in event &&
+      'comment' in event
+    ) {
+      const orchestrator = new ThreadReplyOrchestrator({
+        client,
+        provider,
+        config,
+        logger,
+        dryRun: context.isDryRun,
+      });
+
+      output = await orchestrator.run({
+        repoFullName: event.repository.full_name,
+        pullRequestNumber: event.pull_request.number,
+        commentId: event.comment.id,
+      });
+    }
   }
 
   logger.info('CLI run completed', {
@@ -224,6 +266,7 @@ Options:
   --llm-model <model>
   --llm-api-key <key>
   --llm-base-url <url>
+  --llm-timeout-ms <ms>
   --github-api-url <url>
   --github-server-url <url>
   --style-guide-rules <rules>

@@ -95,6 +95,12 @@ export interface CommentInfo {
     login: string;
   };
   author_association?: AuthorAssociation;
+  path?: string;
+  line?: number | null;
+  original_line?: number | null;
+  diff_hunk?: string;
+  in_reply_to_id?: number | null;
+  created_at?: string;
 }
 
 /**

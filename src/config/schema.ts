@@ -12,6 +12,7 @@ export interface Config {
   LLM_PROVIDER: 'ai-sdk';
   LLM_BASE_URL?: string;
   STYLE_GUIDE_RULES?: string;
+  LLM_TIMEOUT_MS?: number;
   GITHUB_API_URL: string;
   GITHUB_SERVER_URL: string;
   DEBUG: boolean;
@@ -66,7 +67,18 @@ export function validateConfig(config: Partial<Config>): ConfigValidationIssue[]
     });
   }
 
+  if (config.LLM_TIMEOUT_MS !== undefined && !isValidTimeout(config.LLM_TIMEOUT_MS)) {
+    issues.push({
+      field: 'LLM_TIMEOUT_MS',
+      message: 'LLM_TIMEOUT_MS must be a non-negative integer or 0 to disable.',
+    });
+  }
+
   return issues;
+}
+
+function isValidTimeout(value: number): boolean {
+  return Number.isInteger(value) && value >= 0;
 }
 
 export function formatConfigValidationIssues(issues: ConfigValidationIssue[]): string {

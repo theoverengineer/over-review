@@ -60,6 +60,110 @@ describe('loadConfig', () => {
       expect((error as Error).message).toContain('LLM_API_KEY');
     }
   });
+
+  it('applies default timeout of 30000ms when not configured', () => {
+    const cwd = createTempDir();
+
+    const config = loadConfig({
+      cwd,
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+    });
+
+    expect(config.LLM_TIMEOUT_MS).toBe(30_000);
+  });
+
+  it('accepts custom timeout from environment variable', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+        LLM_TIMEOUT_MS: '60000',
+      },
+    });
+
+    expect(config.LLM_TIMEOUT_MS).toBe(60_000);
+  });
+
+  it('accepts zero timeout to disable timeout', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+        LLM_TIMEOUT_MS: '0',
+      },
+    });
+
+    expect(config.LLM_TIMEOUT_MS).toBe(0);
+  });
+
+  it('accepts timeout from action input', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+        [toActionInputEnvName('llm-timeout-ms')]: '45000',
+      },
+    });
+
+    expect(config.LLM_TIMEOUT_MS).toBe(45_000);
+  });
+
+  it('accepts timeout from CLI', () => {
+    const config = loadConfig({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+      cli: {
+        LLM_TIMEOUT_MS: 120000,
+      },
+    });
+
+    expect(config.LLM_TIMEOUT_MS).toBe(120_000);
+  });
+
+  it('rejects invalid timeout values', () => {
+    expect(() =>
+      loadConfig({
+        env: {
+          GITHUB_TOKEN: 'token',
+          LLM_MODEL: 'model',
+          LLM_API_KEY: 'key',
+          LLM_TIMEOUT_MS: '-100',
+        },
+      })
+    ).toThrow(/LLM_TIMEOUT_MS.*non-negative integer/);
+
+    expect(() =>
+      loadConfig({
+        env: {
+          GITHUB_TOKEN: 'token',
+          LLM_MODEL: 'model',
+          LLM_API_KEY: 'key',
+          LLM_TIMEOUT_MS: 'invalid',
+        },
+      })
+    ).toThrow(/LLM_TIMEOUT_MS.*non-negative integer/);
+
+    expect(() =>
+      loadConfig({
+        env: {
+          GITHUB_TOKEN: 'token',
+          LLM_MODEL: 'model',
+          LLM_API_KEY: 'key',
+          LLM_TIMEOUT_MS: '60s',
+        },
+      })
+    ).toThrow(/LLM_TIMEOUT_MS.*non-negative integer/);
+  });
 });
 
 describe('loadActionInputs', () => {
@@ -68,11 +172,13 @@ describe('loadActionInputs', () => {
       [toActionInputEnvName('llm-model')]: 'gpt-4o-mini',
       [toActionInputEnvName('llm-api-key')]: 'secret',
       [toActionInputEnvName('full-mode')]: 'true',
+      [toActionInputEnvName('llm-timeout-ms')]: '90000',
     });
 
     expect(inputs.LLM_MODEL).toBe('gpt-4o-mini');
     expect(inputs.LLM_API_KEY).toBe('secret');
     expect(inputs.FULL_REVIEW).toBe(true);
+    expect(inputs.LLM_TIMEOUT_MS).toBe(90000);
   });
 });
 
