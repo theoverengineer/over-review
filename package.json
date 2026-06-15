@@ -36,23 +36,23 @@
   },
   "dependencies": {
     "@ai-sdk/openai-compatible": "^2.0.50",
-    "@octokit/core": "^4.2.4",
-    "@octokit/plugin-retry": "^3.0.9",
-    "@octokit/plugin-throttling": "^4.1.1",
-    "ai": "^6.0.205",
+    "@octokit/core": "^7.0.6",
+    "@octokit/plugin-retry": "^8.1.0",
+    "@octokit/plugin-throttling": "^11.0.3",
+    "ai": "^6.0.206",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/node": "^25.9.3",
-    "@typescript-eslint/eslint-plugin": "^8.61.0",
-    "@typescript-eslint/parser": "^8.61.0",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@typescript-eslint/eslint-plugin": "^8.61.1",
+    "@typescript-eslint/parser": "^8.61.1",
+    "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.5.0",
     "globals": "^17.6.0",
     "prettier": "^3.8.4",
-    "tsx": "^4.20.6",
+    "tsx": "^4.22.4",
     "typescript": "^6.0.3",
-    "vitest": "^4.1.8"
+    "vitest": "^4.1.9"
   }
 }

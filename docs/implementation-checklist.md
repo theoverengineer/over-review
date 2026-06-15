@@ -6,9 +6,11 @@
 - [ ] V1 supports same-repo PRs only.
 - [ ] Fork PRs are silently skipped in automatic review, manual review, thread replies, and CLI review flows.
 - [ ] `ai-sdk` is the only shipped provider in V1.
-- [ ] Manual `/review` is allowed only for `OWNER`, `MEMBER`, and `COLLABORATOR` using `author_association`.
-- [ ] Unauthorized `/review` adds an `eyes` reaction and does not start a review run.
+- [ ] Manual `/review` and `/ai-review` are allowed only for `OWNER`, `MEMBER`, and `COLLABORATOR` using `author_association`.
+- [ ] Unauthorized `/review` or `/ai-review` adds an `eyes` reaction and does not start a review run.
 - [ ] `/ai-review` is supported as an alias for `/review` and follows the same authorization and execution rules.
+- [ ] CLI `--list-prs` lists pull requests for a repo.
+- [ ] PR title regeneration happens only when the PR title explicitly mentions `@overreview`.
 
 ## Milestone 1: Freeze V1 Event And Trust Boundaries
 
@@ -64,6 +66,7 @@ Verification gate:
 - [ ] Implement review prompt flow with actionable-comment filtering.
 - [ ] Implement overview comment creation, loading state, final rendering, and hidden payload signature.
 - [ ] Enforce review policy: diff-scoped reasoning, no style-only noise, no duplicate findings.
+- [ ] Implement PR title regeneration when title explicitly mentions `@overreview`.
 
 Dependencies: Milestone 3
 
@@ -72,6 +75,7 @@ Verification gate:
 - [ ] The run generates a PR summary and final overview comment.
 - [ ] Inline comments post only for actionable findings.
 - [ ] Bot ownership is determined by hidden signatures, not username alone.
+- [ ] PR title regeneration respects the explicit `@overreview` mention requirement.
 
 ## Milestone 5: Incremental Review State
 
@@ -91,22 +95,22 @@ Verification gate:
 
 ## Milestone 6: Manual Review Commands And Authorization
 
-- [ ] Parse `/review` and `/review --full` on new `issue_comment` events.
+- [ ] Parse `/review` and `/ai-review` on new `issue_comment` events, including `--full` flag.
 - [ ] Route `/ai-review` through the same parser and execution path as `/review`.
 - [ ] Ignore bot-authored comments and non-command comments.
 - [ ] Authorize manual review using `author_association`.
 - [ ] Allow only `OWNER`, `MEMBER`, and `COLLABORATOR`.
-- [ ] Add `eyes` reaction for unauthorized `/review` and do not start a review run.
+- [ ] Add `eyes` reaction for unauthorized `/review` or `/ai-review` and do not start a review run.
 - [ ] Reuse the same orchestrator used by automatic review.
 - [ ] Apply the same same-repo and fork skip rules before any review work starts.
 
 Dependencies: Milestone 5
 
 Verification gate:
-- [ ] Authorized `/review` triggers the review flow.
-- [ ] Authorized `/review --full` forces full review.
-- [ ] Unauthorized `/review` gets only an `eyes` reaction.
-- [ ] Unauthorized `/review` produces no overview update, no model call, and no review submission.
+- [ ] Authorized `/review` or `/ai-review` triggers the review flow.
+- [ ] Authorized `/review --full` or `/ai-review --full` forces full review.
+- [ ] Unauthorized `/review` or `/ai-review` gets only an `eyes` reaction.
+- [ ] Unauthorized `/review` or `/ai-review` produces no overview update, no model call, and no review submission.
 - [ ] Manual commands on fork PRs are silently skipped.
 
 ## Milestone 7: Thread Replies And CLI Dry-Run
@@ -114,8 +118,8 @@ Verification gate:
 - [ ] Implement review-thread reconstruction and relevance detection.
 - [ ] Reply only when the bot already participated or the latest comment mentions the bot.
 - [ ] Post replies only when the model returns `action_requested = true` and non-empty content.
-- [ ] Implement CLI review path through the same orchestrator.
-- [ ] Support dry-run write suppression and optional output capture.
+- [ ] Implement CLI review path through the shared orchestrator.
+- [ ] Support `--list-prs`, `--pr`, `--dry-run`, `--out`, and `--full` flags.
 - [ ] Apply same-repo and fork skip rules to thread-reply and CLI review paths.
 
 Dependencies: Milestone 4
@@ -123,6 +127,7 @@ Dependencies: Milestone 4
 Verification gate:
 - [ ] Irrelevant review threads are skipped.
 - [ ] Relevant replies mention the target user and avoid filler.
+- [ ] CLI `--list-prs` lists pull requests for a repo.
 - [ ] CLI dry-run performs fetch and prompt steps but no GitHub writes.
 - [ ] CLI review of a fork PR exits quietly.
 

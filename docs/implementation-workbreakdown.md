@@ -195,7 +195,7 @@ Assumption: use TypeScript for V1. The same boundaries still apply if the projec
 - `src/providers/errors.ts`
 - `src/prompts/schemas.ts`
 
-### Milestone 4: Review Core And Overview Lifecycle
+### Milestone 4: Review Core And Overview Comment Lifecycle
 
 - `src/contracts/review.ts`
 - `src/diff/parse-patch.ts`
@@ -237,7 +237,7 @@ Assumption: use TypeScript for V1. The same boundaries still apply if the projec
 - `src/cli/run-review.ts`
 - `src/cli/write-output.ts`
 
-### Milestone 8: Hardening, Acceptance, And Release Prep
+### Milestone 8: Hardening, Acceptance, And Doc Alignment
 
 - `test/**/*`
 - `action.yml`
