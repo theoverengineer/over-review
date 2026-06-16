@@ -6,6 +6,7 @@
 import { readFileSync } from 'fs';
 import { loadConfig } from './config';
 import { GitHubClient } from './github/client';
+import { addReaction } from './github/reactions';
 import { createProvider } from './providers';
 import { ReviewOrchestrator } from './review/orchestrator';
 import { ThreadReplyOrchestrator } from './threads/reply-orchestrator';
@@ -62,6 +63,12 @@ export async function main(): Promise<void> {
   });
 
   const result = await routeEvent(event, eventName, client);
+
+  if (result.outcome.type === 'unauthorized' && result.outcome.eyesReaction) {
+    if (eventName === 'issue_comment' && 'comment' in event && event.comment) {
+      await addReaction(client, event.repository.full_name, event.comment.id, 'eyes');
+    }
+  }
 
   if (result.outcome.type === 'review') {
     if (eventName === 'pull_request' && 'pull_request' in event) {

@@ -13,6 +13,7 @@ export * from './events/handlers';
 export * from './github/client';
 export * from './github/comments';
 export * from './github/pull-requests';
+export * from './github/reactions';
 export * from './github/reviews';
 export * from './main';
 export * from './providers';

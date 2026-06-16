@@ -183,6 +183,49 @@ describe('handleIssueComment', () => {
   });
 });
 
+describe('handleIssueComment authorization', () => {
+  it('handles /ai-review alias as authorized when association is valid', () => {
+    const aiReviewEvent: IssueCommentEvent = {
+      ...authorizedReviewCommentEvent,
+      comment: {
+        ...authorizedIssueComment,
+        body: '/ai-review --full',
+        author_association: 'COLLABORATOR',
+      },
+      issue: {
+        ...authorizedIssue,
+        author_association: 'COLLABORATOR',
+      },
+    };
+
+    const result = handleIssueComment(aiReviewEvent);
+    expect(result.type).toBe('review');
+    expect(result.command).toBe('/ai-review');
+    expect(result.fullMode).toBe(true);
+  });
+
+  it('returns unauthorized for /ai-review with invalid association', () => {
+    const aiReviewUnauthorizedEvent: IssueCommentEvent = {
+      ...unauthorizedReviewCommentEvent,
+      comment: {
+        ...unauthorizedReviewCommentEvent.comment!,
+        body: '/ai-review --full',
+        author_association: 'CONTRIBUTOR',
+      },
+      issue: {
+        ...unauthorizedReviewCommentEvent.issue,
+        author_association: 'CONTRIBUTOR',
+      },
+    };
+
+    const result = handleIssueComment(aiReviewUnauthorizedEvent);
+    expect(result.type).toBe('unauthorized');
+    expect(result.command).toBe('/ai-review');
+    expect(result.fullMode).toBe(true);
+    expect(result.eyesReaction).toBe(true);
+  });
+});
+
 describe('handleReviewComment', () => {
   it('handles supported review-comment actions', () => {
     const result = handleReviewComment(reviewCommentEvent);

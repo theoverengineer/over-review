@@ -212,4 +212,42 @@ describe('cli', () => {
       },
     });
   });
+
+  it('does not run orchestrator for unauthorized manual review commands', async () => {
+    writeFileSync(
+      join(tempDir, 'event.json'),
+      JSON.stringify({
+        repository: { full_name: 'owner/repo' },
+        issue: { number: 123 },
+        comment: { id: 456, body: '/review' },
+      })
+    );
+    mocks.routeEventMock.mockResolvedValue({
+      handled: true,
+      outcome: {
+        type: 'unauthorized',
+        reason: 'Unauthorized manual review command: /review',
+        prNumber: 123,
+        command: '/review',
+        eyesReaction: true,
+      },
+    });
+
+    await runCli([
+      '--event',
+      'issue_comment',
+      '--payload',
+      'event.json',
+      '--dry-run',
+      '--out',
+      'out.json',
+    ]);
+
+    expect(mocks.reviewRunMock).not.toHaveBeenCalled();
+    expect(mocks.threadReplyRunMock).not.toHaveBeenCalled();
+    // Output should contain the unauthorized outcome
+    const output = JSON.parse(readFileSync(join(tempDir, 'out.json'), 'utf8'));
+    expect(output.outcome.type).toBe('unauthorized');
+    expect(output.outcome.eyesReaction).toBe(true);
+  });
 });

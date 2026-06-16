@@ -384,3 +384,51 @@ describe('CLI behavior for fork PRs', () => {
     expect(result.outcome.reason).toBe('Fork PR silently skipped');
   });
 });
+
+describe('Unauthorized manual review commands', () => {
+  it('returns unauthorized outcome with eyesReaction flag', async () => {
+    const mockClient = createMockClient({
+      number: 123,
+      title: 'Test PR',
+      head: {
+        sha: 'abc123',
+        repo: {
+          full_name: 'owner/repo',
+          name: 'repo',
+          owner: { login: 'owner', type: 'Organization' },
+        },
+      },
+      base: {
+        sha: 'def456',
+        repo: {
+          full_name: 'owner/repo',
+          name: 'repo',
+          owner: { login: 'owner', type: 'Organization' },
+        },
+      },
+    });
+
+    const result = await routeEvent(unauthorizedReviewCommentEvent, 'issue_comment', mockClient);
+    expect(result.handled).toBe(true);
+    expect(result.outcome.type).toBe('unauthorized');
+    expect(result.outcome.eyesReaction).toBe(true);
+    expect(mockClient.get).not.toHaveBeenCalled();
+  });
+
+  it('/ai-review alias also triggers unauthorized with eyesReaction', async () => {
+    const aiReviewUnauthorizedEvent: IssueCommentEvent = {
+      ...unauthorizedReviewCommentEvent,
+      comment: {
+        ...unauthorizedReviewCommentEvent.comment!,
+        body: '/ai-review --full',
+      },
+    };
+
+    const result = await routeEvent(aiReviewUnauthorizedEvent, 'issue_comment');
+    expect(result.handled).toBe(true);
+    expect(result.outcome.type).toBe('unauthorized');
+    expect(result.outcome.command).toBe('/ai-review');
+    expect(result.outcome.fullMode).toBe(true);
+    expect(result.outcome.eyesReaction).toBe(true);
+  });
+});
