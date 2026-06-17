@@ -42,10 +42,24 @@ export function renderReviewSummary(input: ReviewSummaryInput): string {
 
     for (const finding of nonInlineFindings) {
       lines.push(
-        `- [${finding.severity}] \`${finding.path}:${finding.line}\` ${finding.title}: ${finding.body}`
+        `- [${finding.severity}] \`${finding.path}:${renderLineRange(finding)}\` ${finding.title}: ${finding.body}`
       );
+
+      if (finding.replacementSnippet) {
+        lines.push('', 'Suggested replacement:', '```', finding.replacementSnippet, '```');
+      }
     }
   }
 
   return lines.join('\n');
+}
+
+function renderLineRange(finding: { line: number; startLine?: number; endLine?: number }): string {
+  if (finding.startLine !== undefined && finding.endLine !== undefined) {
+    if (finding.startLine === finding.endLine) {
+      return `${finding.startLine}`;
+    }
+    return `${finding.startLine}-${finding.endLine}`;
+  }
+  return `${finding.line}`;
 }

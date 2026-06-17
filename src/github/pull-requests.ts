@@ -7,6 +7,20 @@ import { GitHubClient } from './client';
 import type { PullRequestCommit, PullRequestFile, PullRequestSnapshot } from '../contracts/review';
 import type { PullRequestInfo, RepositoryInfo } from '../runtime/types';
 
+export interface ListPullRequestsOptions {
+  owner: string;
+  repo: string;
+  state?: 'open' | 'closed' | 'all';
+  limit?: number;
+}
+
+export interface ListPullRequestResult {
+  number: number;
+  title: string;
+  state: string;
+  isFork: boolean;
+}
+
 /**
  * Information about whether a PR is from a fork or same repo.
  */
@@ -225,4 +239,94 @@ export async function updatePullRequestTitle(
   await client.patch(`/repos/${repoFullName}/pulls/${pullRequestNumber}`, {
     title,
   });
+}
+
+/**
+ * Fetch list of pull requests for a repository.
+ * @param client - GitHub client instance
+ * @param options - List PRs options
+ * @returns Array of PR information
+ */
+export async function listPullRequests(
+  client: GitHubClient,
+  options: ListPullRequestsOptions
+): Promise<ListPullRequestResult[]> {
+  const state = options.state || 'open';
+  const limit = options.limit || 10;
+
+  const response = await client.get<
+    Array<{
+      number: number;
+      title: string;
+      state: string;
+      head: {
+        repo?: { full_name?: string | null };
+      };
+      base: {
+        repo?: { full_name?: string | null };
+      };
+    }>
+  >(
+    `/repos/${options.owner}/${options.repo}/pulls?state=${encodeURIComponent(state)}&per_page=${limit}`
+  );
+
+  return response.map((pr) => {
+    const headRepo = pr.head.repo?.full_name ?? null;
+    const baseRepo = pr.base.repo?.full_name ?? null;
+    const isFork = headRepo !== null && baseRepo !== null && headRepo !== baseRepo;
+    return {
+      number: pr.number,
+      title: pr.title,
+      state: pr.state,
+      isFork,
+    };
+  });
+}
+
+/**
+ * Fetch a single pull request's identity information.
+ * @param client - GitHub client instance
+ * @param owner - Repository owner
+ * @param repo - Repository name
+ * @param prNumber - PR number
+ * @returns PR identity information or null if not found
+ */
+export async function fetchPullRequestIdentityByNumber(
+  client: GitHubClient,
+  owner: string,
+  repo: string,
+  prNumber: number
+): Promise<PullRequestIdentity | null> {
+  try {
+    const prResponse = await client.get<{
+      number: number;
+      title: string;
+      head: {
+        sha: string;
+        repo?: { full_name?: string | null };
+      };
+      base: {
+        sha: string;
+        repo?: { full_name?: string | null };
+      };
+    }>(`/repos/${owner}/${repo}/pulls/${prNumber}`);
+
+    const headRepoFullName = prResponse.head.repo?.full_name ?? null;
+    const baseRepoFullName = prResponse.base.repo?.full_name ?? null;
+    const isFork =
+      headRepoFullName !== null &&
+      baseRepoFullName !== null &&
+      headRepoFullName !== baseRepoFullName;
+
+    return {
+      number: prResponse.number,
+      title: prResponse.title,
+      isFork,
+      headRepoFullName,
+      baseRepoFullName,
+      headSha: prResponse.head.sha,
+    };
+  } catch {
+    return null;
+  }
 }

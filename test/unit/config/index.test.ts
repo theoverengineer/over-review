@@ -1,11 +1,12 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   loadActionInputs,
   loadConfig,
+  loadConfigWithMetadata,
   parseDotEnv,
   toActionInputEnvName,
 } from '../../../src/config';
@@ -20,7 +21,7 @@ afterEach(() => {
 });
 
 describe('loadConfig', () => {
-  it('applies precedence from cli to env to action input to local .env', () => {
+  it('applies precedence from cli to env to action input to local .env when envFilePath is not specified (GitHub Action behavior)', () => {
     const cwd = createTempDir();
 
     writeFileSync(
@@ -43,16 +44,99 @@ describe('loadConfig', () => {
       },
     });
 
+    // .env is loaded first, then env vars override, then CLI overrides
     expect(config.GITHUB_TOKEN).toBe('env-token');
     expect(config.LLM_MODEL).toBe('cli-model');
     expect(config.LLM_API_KEY).toBe('env-key');
   });
 
+  it('does not load .env when envFilePath is explicitly false', () => {
+    const cwd = createTempDir();
+
+    writeFileSync(
+      join(cwd, '.env'),
+      ['GITHUB_TOKEN=dotenv-token', 'LLM_MODEL=dotenv-model', 'LLM_API_KEY=dotenv-key'].join('\n'),
+      'utf8'
+    );
+
+    const config = loadConfig({
+      cwd,
+      env: {
+        GITHUB_TOKEN: 'env-token',
+        LLM_MODEL: 'env-model',
+        LLM_API_KEY: 'env-key',
+      },
+      cli: {
+        LLM_MODEL: 'cli-model',
+      },
+      envFilePath: false,
+    });
+
+    // .env should NOT be loaded; only env vars and CLI
+    expect(config.GITHUB_TOKEN).toBe('env-token');
+    expect(config.LLM_MODEL).toBe('cli-model');
+    expect(config.LLM_API_KEY).toBe('env-key');
+  });
+
+  it('uses custom env file path when provided', () => {
+    const cwd = createTempDir();
+    const customEnvPath = join(cwd, 'custom.env');
+
+    writeFileSync(
+      customEnvPath,
+      ['GITHUB_TOKEN=custom-env-token', 'LLM_MODEL=custom-env-model'].join('\n'),
+      'utf8'
+    );
+
+    const config = loadConfig({
+      cwd,
+      env: {
+        GITHUB_TOKEN: 'env-token',
+        LLM_MODEL: 'env-model',
+        LLM_API_KEY: 'env-key',
+      },
+      cli: {
+        LLM_MODEL: 'cli-model',
+      },
+      envFilePath: 'custom.env',
+    });
+
+    // custom.env should be loaded; env vars override it, CLI overrides env vars
+    expect(config.GITHUB_TOKEN).toBe('env-token');
+    expect(config.LLM_MODEL).toBe('cli-model');
+    expect(config.LLM_API_KEY).toBe('env-key');
+  });
+
+  it('loads required config from an env file when the real environment is unset', () => {
+    const cwd = createTempDir();
+    const customEnvPath = join(cwd, 'custom.env');
+
+    writeFileSync(
+      customEnvPath,
+      [
+        'GITHUB_TOKEN=custom-env-token',
+        'LLM_MODEL=custom-env-model',
+        'LLM_API_KEY=custom-env-key',
+      ].join('\n'),
+      'utf8'
+    );
+
+    const config = loadConfig({
+      cwd,
+      env: {},
+      envFilePath: 'custom.env',
+    });
+
+    expect(config.GITHUB_TOKEN).toBe('custom-env-token');
+    expect(config.LLM_MODEL).toBe('custom-env-model');
+    expect(config.LLM_API_KEY).toBe('custom-env-key');
+  });
+
   it('throws clear validation errors when required config is missing', () => {
-    expect(() => loadConfig({ env: {} })).toThrowError(ConfigValidationError);
+    expect(() => loadConfig({ env: {}, envFilePath: false })).toThrowError(ConfigValidationError);
 
     try {
-      loadConfig({ env: {} });
+      loadConfig({ env: {}, envFilePath: false });
     } catch (error) {
       expect(error).toBeInstanceOf(ConfigValidationError);
       expect((error as Error).message).toContain('GITHUB_TOKEN');
@@ -246,6 +330,138 @@ describe('loadConfig', () => {
       })
     ).toThrow(/LLM_STRUCTURED_OUTPUTS.*true\/false/);
   });
+
+  it('returns source metadata with loadConfigWithMetadata', () => {
+    const config = loadConfigWithMetadata({
+      env: {
+        GITHUB_TOKEN: 'env-token',
+        LLM_MODEL: 'env-model',
+        LLM_API_KEY: 'env-key',
+      },
+      cli: {
+        LLM_MODEL: 'cli-model',
+      },
+    });
+
+    expect(config.config.LLM_MODEL).toBe('cli-model');
+    expect(config.config.GITHUB_TOKEN).toBe('env-token');
+    expect(config.config.LLM_API_KEY).toBe('env-key');
+
+    expect(config.metadata.sources.LLM_MODEL).toBe('cli');
+    expect(config.metadata.sources.GITHUB_TOKEN).toBe('env');
+    expect(config.metadata.sources.LLM_API_KEY).toBe('env');
+  });
+
+  it('tracks env-file source when loading from .env file', () => {
+    const cwd = createTempDir();
+
+    writeFileSync(
+      join(cwd, '.env'),
+      ['GITHUB_TOKEN=dotenv-token', 'LLM_MODEL=dotenv-model'].join('\n'),
+      'utf8'
+    );
+
+    const config = loadConfigWithMetadata({
+      cwd,
+      env: {
+        LLM_API_KEY: 'env-key',
+      },
+    });
+
+    expect(config.config.GITHUB_TOKEN).toBe('dotenv-token');
+    expect(config.config.LLM_MODEL).toBe('dotenv-model');
+    expect(config.config.LLM_API_KEY).toBe('env-key');
+
+    expect(config.metadata.sources.GITHUB_TOKEN).toBe('env-file');
+    expect(config.metadata.sources.LLM_MODEL).toBe('env-file');
+    expect(config.metadata.sources.LLM_API_KEY).toBe('env');
+  });
+
+  it('tracks action-input sources', () => {
+    const config = loadConfigWithMetadata({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+        [toActionInputEnvName('llm-model')]: 'input-model',
+        [toActionInputEnvName('full-mode')]: 'true',
+      },
+    });
+
+    // env has higher priority than action-input
+    expect(config.config.LLM_MODEL).toBe('model');
+    expect(config.config.FULL_REVIEW).toBe(true);
+
+    expect(config.metadata.sources.LLM_MODEL).toBe('env');
+    expect(config.metadata.sources.FULL_REVIEW).toBe('action-input');
+  });
+
+  it('tracks cli sources', () => {
+    const config = loadConfigWithMetadata({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+      cli: {
+        LLM_MODEL: 'cli-model',
+        LLM_TIMEOUT_MS: 60000,
+      },
+    });
+
+    expect(config.config.LLM_MODEL).toBe('cli-model');
+    expect(config.config.LLM_TIMEOUT_MS).toBe(60000);
+
+    expect(config.metadata.sources.LLM_MODEL).toBe('cli');
+    expect(config.metadata.sources.LLM_TIMEOUT_MS).toBe('cli');
+  });
+
+  it('shows env-file path and loaded status in metadata', () => {
+    const cwd = createTempDir();
+
+    writeFileSync(join(cwd, '.env'), 'GITHUB_TOKEN=token\n', 'utf8');
+
+    const config = loadConfigWithMetadata({
+      cwd,
+      env: {
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+    });
+
+    expect(config.metadata.envFile.path).toBe(join(cwd, '.env'));
+    expect(config.metadata.envFile.status).toBe('loaded');
+  });
+
+  it('shows env-file as skipped when envFilePath is false', () => {
+    const config = loadConfigWithMetadata({
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+      envFilePath: false,
+    });
+
+    expect(config.metadata.envFile.status).toBe('skipped');
+    expect(config.metadata.envFile.path).toBeUndefined();
+  });
+
+  it('shows env-file as not found when file does not exist', () => {
+    const cwd = createTempDir();
+
+    const config = loadConfigWithMetadata({
+      cwd,
+      env: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'model',
+        LLM_API_KEY: 'key',
+      },
+    });
+
+    expect(config.metadata.envFile.status).toBe('missing');
+    expect(config.metadata.envFile.path).toBe(join(cwd, '.env'));
+  });
 });
 
 describe('loadActionInputs', () => {
@@ -269,6 +485,37 @@ describe('parseDotEnv', () => {
     expect(parseDotEnv("FOO=bar\nBAR='baz'\n# comment")).toEqual({
       FOO: 'bar',
       BAR: 'baz',
+    });
+  });
+
+  it('strips inline comments from unquoted values', () => {
+    expect(
+      parseDotEnv(
+        'LLM_MODEL=moonshotai/kimi-k2.6 # Model name\nGITHUB_TOKEN=ghp_token123 # token\nFOO=bar'
+      )
+    ).toEqual({
+      LLM_MODEL: 'moonshotai/kimi-k2.6',
+      GITHUB_TOKEN: 'ghp_token123',
+      FOO: 'bar',
+    });
+  });
+
+  it('preserves # inside quoted values', () => {
+    expect(
+      parseDotEnv("FOO='value # with hash'\nBAR=\"another # comment\"\nBAZ='single#quoted'")
+    ).toEqual({
+      FOO: 'value # with hash',
+      BAR: 'another # comment',
+      BAZ: 'single#quoted',
+    });
+  });
+
+  it('handles inline comment at end of line with quotes', () => {
+    // When a value is quoted, the # inside the quotes is preserved as part of the value
+    // The closing quote must be at the end for the value to be considered quoted
+    expect(parseDotEnv("FOO='bar'\nBAZ=hello # world")).toEqual({
+      FOO: 'bar',
+      BAZ: 'hello',
     });
   });
 });

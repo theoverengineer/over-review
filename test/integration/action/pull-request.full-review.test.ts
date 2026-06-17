@@ -90,6 +90,9 @@ describe('integration/action pull_request full review', () => {
               {
                 path: 'src/main.ts',
                 line: 2,
+                startLine: 2,
+                endLine: 2,
+                replacementSnippet: 'const parsed = (value ?? "").trim();',
                 severity: 'critical',
                 title: 'Missing empty-input guard',
                 body: 'Calling trim() on an unchecked value can still throw when the input is null.',
@@ -128,9 +131,22 @@ describe('integration/action pull_request full review', () => {
     expect(result.handled).toBe(true);
     expect(result.summary?.title).toBe('Add validation guard');
     expect(result.inlineFindings).toHaveLength(1);
+    expect(result.inlineFindings[0]).toMatchObject({
+      startLine: 2,
+      endLine: 2,
+      replacementSnippet: 'const parsed = (value ?? "").trim();',
+    });
     expect(result.artifacts.loadingOverviewBody).toContain('<!-- overreview:overview -->');
     expect(result.artifacts.finalOverviewBody).toContain('Add validation guard');
     expect(result.artifacts.reviewBody).toContain('One actionable issue was found.');
+    expect(result.artifacts.inlineComments[0]).toMatchObject({
+      path: 'src/main.ts',
+      line: 2,
+      startLine: 2,
+      endLine: 2,
+      replacementSnippet: 'const parsed = (value ?? "").trim();',
+    });
+    expect(result.artifacts.inlineComments[0].body).toContain('Suggested replacement:');
     expect(operations).toEqual([
       'GET /repos/owner/repo/pulls/123',
       'GET /repos/owner/repo/pulls/123/files?per_page=100',

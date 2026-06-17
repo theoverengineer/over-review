@@ -54,6 +54,27 @@ describe('prompts/schemas', () => {
       expect(ReviewOutputSchema.parse(validOutput)).toEqual(validOutput);
     });
 
+    it('validates a finding with line range and replacement snippet', () => {
+      const validOutput = {
+        reviewSummary: 'One actionable issue was found.',
+        needsAttention: true,
+        findings: [
+          {
+            path: 'src/main.ts',
+            line: 42,
+            startLine: 40,
+            endLine: 45,
+            replacementSnippet: '-const value = input;\n+const value = input?.trim() ?? "";',
+            severity: 'critical',
+            title: 'Guard missing before property access',
+            body: 'The new code dereferences `obj.property` without checking that `obj` exists.',
+          },
+        ],
+      };
+
+      expect(ReviewOutputSchema.parse(validOutput)).toEqual(validOutput);
+    });
+
     it('allows an empty finding list', () => {
       const validOutput = {
         reviewSummary: 'No actionable issues were found in the diff.',

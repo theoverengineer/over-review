@@ -3,7 +3,7 @@
  * @packageDocumentation
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync } from 'node:fs';
 import { loadConfig } from './config';
 import { GitHubClient } from './github/client';
 import { addReaction } from './github/reactions';

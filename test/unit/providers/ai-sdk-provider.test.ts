@@ -413,13 +413,9 @@ describe('providers/ai-sdk-provider', () => {
     });
   });
 
-  it('uses structured output for official provider (no baseUrl) even with structuredOutputs: false', async () => {
+  it('skips structured output and uses fallback for official provider with structuredOutputs: false', async () => {
     const generateTextMock = vi.fn().mockResolvedValue({
-      output: {
-        title: 'Official provider',
-        description: 'Uses structured outputs.',
-      },
-      text: '{"title":"Official provider","description":"Uses structured outputs."}',
+      text: '```json\n{"title":"Fallback title","description":"Recovered from plain text."}\n```',
     });
 
     const provider = new AISDKProvider(
@@ -439,17 +435,17 @@ describe('providers/ai-sdk-provider', () => {
       schema: summarySchema,
     });
 
-    // For official providers, structured output is still attempted even when structuredOutputs is false
-    // This preserves the existing retry/fallback behavior
+    // Should only call generateText once (direct fallback, no structured attempt)
     expect(generateTextMock).toHaveBeenCalledTimes(1);
+    // Should NOT have output property in the generateText call
     expect(generateTextMock).toHaveBeenCalledWith(
-      expect.objectContaining({
+      expect.not.objectContaining({
         output: expect.any(Object),
       })
     );
     expect(result.output).toEqual({
-      title: 'Official provider',
-      description: 'Uses structured outputs.',
+      title: 'Fallback title',
+      description: 'Recovered from plain text.',
     });
   });
 });

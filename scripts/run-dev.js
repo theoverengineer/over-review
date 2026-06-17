@@ -4,7 +4,7 @@
  */
 
 const { spawn } = require('child_process');
-const path = require('path');
+const path = require('node:path');
 
 const workspaceRoot = path.dirname(__dirname);
 

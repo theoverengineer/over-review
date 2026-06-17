@@ -1,11 +1,11 @@
 /**
  * Configuration loader for over-review.
- * Precedence: CLI flags > env > action inputs > local .env.
+ * Precedence: CLI flags > env > action inputs > env file.
  * @packageDocumentation
  */
 
-import { existsSync, readFileSync } from 'fs';
-import { resolve } from 'path';
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   ConfigValidationError,
   parseBoolean,
@@ -21,12 +21,39 @@ export interface ConfigLoaderOptions {
   cli?: Partial<Config>;
   env?: NodeJS.ProcessEnv;
   cwd?: string;
+  envFilePath?: string | false;
+}
+
+export type ConfigSource = 'cli' | 'env' | 'env-file' | 'action-input' | 'default' | 'gh-auth';
+
+export interface ConfigSourceMetadata {
+  envFile: {
+    status: 'skipped' | 'missing' | 'loaded';
+    path?: string;
+  };
+  sources: Record<keyof Config, ConfigSource>;
 }
 
 type ConfigPatch = Partial<Config>;
 
 const DEFAULT_GITHUB_API_URL = 'https://api.github.com';
 const DEFAULT_GITHUB_SERVER_URL = 'https://github.com';
+const CONFIG_KEYS: Array<keyof Config> = [
+  'GITHUB_TOKEN',
+  'LLM_MODEL',
+  'LLM_API_KEY',
+  'LLM_PROVIDER',
+  'LLM_BASE_URL',
+  'STYLE_GUIDE_RULES',
+  'LLM_TIMEOUT_MS',
+  'LLM_STRUCTURED_OUTPUTS',
+  'GITHUB_API_URL',
+  'GITHUB_SERVER_URL',
+  'DEBUG',
+  'DRY_RUN',
+  'FULL_REVIEW',
+  'REVIEW_MODE',
+];
 
 const ACTION_INPUT_MAP: Array<[keyof Config, string]> = [
   ['LLM_MODEL', 'llm-model'],
@@ -42,17 +69,26 @@ const ACTION_INPUT_MAP: Array<[keyof Config, string]> = [
 ];
 
 export function loadConfig(options: ConfigLoaderOptions = {}): Config {
+  return loadConfigWithMetadata(options).config;
+}
+
+/**
+ * Load config and return both the config and source metadata.
+ * This is used for debug logging to show which fields came from which sources.
+ */
+export function loadConfigWithMetadata(options: ConfigLoaderOptions = {}): {
+  config: Config;
+  metadata: ConfigSourceMetadata;
+} {
   const env = options.env ?? process.env;
   const cwd = options.cwd ?? process.cwd();
+  const envFile = resolveEnvFile(cwd, options.envFilePath);
+  const actionInputPatch = loadActionInputs(env);
+  const envPatch = loadEnvironmentVariables(env);
+  const cliPatch = options.cli ?? {};
 
-  const config = applyDefaults(
-    mergeConfigPatches(
-      loadLocalEnv(cwd),
-      loadActionInputs(env),
-      loadEnvironmentVariables(env),
-      options.cli ?? {}
-    )
-  );
+  const merged = mergeConfigPatches(envFile.patch, actionInputPatch, envPatch, cliPatch);
+  const config = applyDefaults(merged);
 
   const issues = validateConfig(config);
 
@@ -60,7 +96,16 @@ export function loadConfig(options: ConfigLoaderOptions = {}): Config {
     throw new ConfigValidationError(issues);
   }
 
-  return config;
+  return {
+    config,
+    metadata: {
+      envFile: {
+        status: envFile.status,
+        path: envFile.path,
+      },
+      sources: buildConfigSourceMap(envFile.patch, actionInputPatch, envPatch, cliPatch),
+    },
+  };
 }
 
 export function applyDefaults(config: ConfigPatch): Config {
@@ -83,19 +128,62 @@ export function applyDefaults(config: ConfigPatch): Config {
 }
 
 export function loadEnvironmentVariables(env: NodeJS.ProcessEnv = process.env): ConfigPatch {
-  const patch: ConfigPatch = {
-    GITHUB_TOKEN: parseTrimmedString(env.GITHUB_TOKEN),
-    LLM_MODEL: parseTrimmedString(env.LLM_MODEL),
-    LLM_API_KEY: parseTrimmedString(env.LLM_API_KEY),
-    LLM_BASE_URL: parseTrimmedString(env.LLM_BASE_URL),
-    STYLE_GUIDE_RULES: parseTrimmedString(env.STYLE_GUIDE_RULES),
-    GITHUB_API_URL: parseTrimmedString(env.GITHUB_API_URL),
-    GITHUB_SERVER_URL: parseTrimmedString(env.GITHUB_SERVER_URL),
-    DEBUG: parseBoolean(env.DEBUG),
-    DRY_RUN: parseBoolean(env.DRY_RUN),
-    FULL_REVIEW: parseBoolean(env.FULL_REVIEW),
-    REVIEW_MODE: parseReviewMode(env.REVIEW_MODE),
-  };
+  const patch: ConfigPatch = {};
+
+  const githubToken = parseTrimmedString(env.GITHUB_TOKEN);
+  if (githubToken !== undefined) {
+    patch.GITHUB_TOKEN = githubToken;
+  }
+
+  const llmModel = parseTrimmedString(env.LLM_MODEL);
+  if (llmModel !== undefined) {
+    patch.LLM_MODEL = llmModel;
+  }
+
+  const llmApiKey = parseTrimmedString(env.LLM_API_KEY);
+  if (llmApiKey !== undefined) {
+    patch.LLM_API_KEY = llmApiKey;
+  }
+
+  const llmBaseUrl = parseTrimmedString(env.LLM_BASE_URL);
+  if (llmBaseUrl !== undefined) {
+    patch.LLM_BASE_URL = llmBaseUrl;
+  }
+
+  const styleGuideRules = parseTrimmedString(env.STYLE_GUIDE_RULES);
+  if (styleGuideRules !== undefined) {
+    patch.STYLE_GUIDE_RULES = styleGuideRules;
+  }
+
+  const githubApiUrl = parseTrimmedString(env.GITHUB_API_URL);
+  if (githubApiUrl !== undefined) {
+    patch.GITHUB_API_URL = githubApiUrl;
+  }
+
+  const githubServerUrl = parseTrimmedString(env.GITHUB_SERVER_URL);
+  if (githubServerUrl !== undefined) {
+    patch.GITHUB_SERVER_URL = githubServerUrl;
+  }
+
+  const debug = parseBoolean(env.DEBUG);
+  if (debug !== undefined) {
+    patch.DEBUG = debug;
+  }
+
+  const dryRun = parseBoolean(env.DRY_RUN);
+  if (dryRun !== undefined) {
+    patch.DRY_RUN = dryRun;
+  }
+
+  const fullReview = parseBoolean(env.FULL_REVIEW);
+  if (fullReview !== undefined) {
+    patch.FULL_REVIEW = fullReview;
+  }
+
+  const reviewMode = parseReviewMode(env.REVIEW_MODE);
+  if (reviewMode !== undefined) {
+    patch.REVIEW_MODE = reviewMode;
+  }
 
   if (env.LLM_TIMEOUT_MS !== undefined) {
     patch.LLM_TIMEOUT_MS = parseTimeoutOrThrow(env.LLM_TIMEOUT_MS);
@@ -110,7 +198,6 @@ export function loadEnvironmentVariables(env: NodeJS.ProcessEnv = process.env): 
 
   return patch;
 }
-
 export function loadActionInputs(env: NodeJS.ProcessEnv = process.env): ConfigPatch {
   const patch: ConfigPatch = {};
 
@@ -126,15 +213,16 @@ export function loadActionInputs(env: NodeJS.ProcessEnv = process.env): ConfigPa
 
   return patch;
 }
-
-export function loadLocalEnv(cwd: string = process.cwd()): ConfigPatch {
-  const envPath = resolve(cwd, '.env');
-
-  if (!existsSync(envPath)) {
-    return {};
-  }
-
-  return loadEnvironmentVariables(parseDotEnv(readFileSync(envPath, 'utf8')));
+/**
+ * Load configuration from a local .env file.
+ * If envFilePath is provided, use that path; otherwise, use <cwd>/.env.
+ * If envFilePath is explicitly false, skip loading .env entirely.
+ */
+export function loadLocalEnv(
+  cwd: string = process.cwd(),
+  envFilePath?: string | false
+): ConfigPatch {
+  return resolveEnvFile(cwd, envFilePath).patch;
 }
 
 export function parseDotEnv(content: string): NodeJS.ProcessEnv {
@@ -154,8 +242,25 @@ export function parseDotEnv(content: string): NodeJS.ProcessEnv {
     }
 
     const key = trimmed.slice(0, separatorIndex).trim();
-    const rawValue = trimmed.slice(separatorIndex + 1).trim();
-    env[key] = rawValue.replace(/^['"]|['"]$/g, '');
+    let rawValue = trimmed.slice(separatorIndex + 1).trim();
+
+    // Check if value is quoted (handles both "value" and 'value')
+    const isQuoted =
+      (rawValue.startsWith('"') && rawValue.endsWith('"')) ||
+      (rawValue.startsWith("'") && rawValue.endsWith("'"));
+
+    if (isQuoted) {
+      // For quoted values, preserve # inside the quotes
+      rawValue = rawValue.slice(1, -1);
+    } else {
+      // For unquoted values, strip inline comments starting with #
+      const commentIndex = rawValue.indexOf('#');
+      if (commentIndex !== -1) {
+        rawValue = rawValue.slice(0, commentIndex).trim();
+      }
+    }
+
+    env[key] = rawValue;
   }
 
   return env;
@@ -167,6 +272,58 @@ export function toActionInputEnvName(inputName: string): string {
 
 function mergeConfigPatches(...patches: ConfigPatch[]): ConfigPatch {
   return Object.assign({}, ...patches);
+}
+
+function resolveEnvFile(
+  cwd: string,
+  envFilePath?: string | false
+): { patch: ConfigPatch; path?: string; status: ConfigSourceMetadata['envFile']['status'] } {
+  if (envFilePath === false) {
+    return { patch: {}, status: 'skipped' };
+  }
+
+  const pathToLoad = envFilePath ? resolve(cwd, envFilePath) : resolve(cwd, '.env');
+
+  if (!existsSync(pathToLoad)) {
+    return { patch: {}, path: pathToLoad, status: 'missing' };
+  }
+
+  return {
+    patch: loadEnvironmentVariables(parseDotEnv(readFileSync(pathToLoad, 'utf8'))),
+    path: pathToLoad,
+    status: 'loaded',
+  };
+}
+
+function buildConfigSourceMap(
+  envFilePatch: ConfigPatch,
+  actionInputPatch: ConfigPatch,
+  envPatch: ConfigPatch,
+  cliPatch: ConfigPatch
+): Record<keyof Config, ConfigSource> {
+  const sources = Object.fromEntries(CONFIG_KEYS.map((key) => [key, 'default'])) as Record<
+    keyof Config,
+    ConfigSource
+  >;
+
+  applyConfigSource(sources, envFilePatch, 'env-file');
+  applyConfigSource(sources, actionInputPatch, 'action-input');
+  applyConfigSource(sources, envPatch, 'env');
+  applyConfigSource(sources, cliPatch, 'cli');
+
+  return sources;
+}
+
+function applyConfigSource(
+  sources: Record<keyof Config, ConfigSource>,
+  patch: ConfigPatch,
+  source: ConfigSource
+): void {
+  for (const key of CONFIG_KEYS) {
+    if (patch[key] !== undefined) {
+      sources[key] = source;
+    }
+  }
 }
 
 function parseReviewMode(value: string | undefined): ReviewMode | undefined {

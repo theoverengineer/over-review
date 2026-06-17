@@ -8,6 +8,9 @@ import type { GitHubClient } from './client';
 export interface DraftInlineComment {
   path: string;
   line: number;
+  startLine?: number;
+  endLine?: number;
+  replacementSnippet?: string;
   body: string;
 }
 

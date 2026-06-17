@@ -57,9 +57,9 @@ vi.mock('../../src/threads/reply-orchestrator', () => ({
   }),
 }));
 
-import { mkdtempSync, rmSync, writeFileSync } from 'fs';
-import { tmpdir } from 'os';
-import { join } from 'path';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { main } from '../../src/main';
 
 describe('main', () => {

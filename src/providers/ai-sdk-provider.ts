@@ -21,10 +21,9 @@ export interface AISDKProviderOptions {
   apiKey: string;
   baseUrl?: string;
   /**
-   * Whether to use structured outputs (JSON mode) for custom OpenAI-compatible endpoints.
-   * When false, custom endpoints skip schema-based structured output requests and fall back to
-   * plain text JSON generation/parsing instead.
-   * Official providers continue using structured outputs through the AI SDK.
+   * Whether to use structured outputs (JSON mode).
+   * When false, both custom and official providers skip schema-based structured output requests
+   * and fall back to plain text JSON generation/parsing instead.
    * @default true
    */
   structuredOutputs?: boolean;
@@ -63,8 +62,8 @@ export class AISDKProvider {
     const timeoutMs = request.timeoutMs ?? DEFAULT_TIMEOUT_MS;
     const maxAttempts = Math.max(1, (request.maxRetries ?? DEFAULT_MAX_RETRIES) + 1);
 
-    // For custom endpoints with structured outputs disabled, skip structured inference entirely
-    const skipStructuredInference = this.baseUrl !== undefined && this.structuredOutputs === false;
+    // Skip structured inference entirely when structured outputs are disabled
+    const skipStructuredInference = this.structuredOutputs === false;
 
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const controller = new AbortController();

@@ -188,7 +188,25 @@ node dist/cli.js \
   --dry-run \
   --full \
   --out result.json
+
+# Review a specific PR from a specific repo
+node dist/cli.js \
+  --pr 123 \
+  --owner my-org \
+  --repo my-repo \
+  --dry-run \
+  --out review-result.json
+
+# List PRs for a repo before reviewing one
+node dist/cli.js \
+  --list-prs \
+  --owner my-org \
+  --repo my-repo \
+  --state open \
+  --limit 5
 ```
+
+The direct PR review flow uses the same review orchestrator as the GitHub Action. Fork PRs are silently skipped, and if `--out` is provided without a path, the CLI writes to a default file like `over-review-my-org-my-repo-pr-123.json`.
 
 ### CLI Options
 
@@ -196,7 +214,7 @@ node dist/cli.js \
 --event, -e <name>           Event name (e.g., pull_request, issue_comment)
 --payload, -p <path>         Path to event payload JSON file
 --dry-run                    Skip GitHub writes
---out, --output <path>       Save output to file
+--out, --output [path]       Save output to file
 --full                       Force full review
 --github-token <token>       GitHub token
 --llm-model <model>          LLM model
@@ -209,7 +227,12 @@ node dist/cli.js \
 --github-server-url <url>    GitHub server URL
 --style-guide-rules <rules>  Additional review guidance text
 --debug                      Enable debug logging
---list-prs                   List PRs (reserved for future)
+--list-prs                   List PRs for a repository
+--pr <number>                Review a specific PR
+--owner <owner>              Repository owner for --list-prs and --pr
+--repo <repo>                Repository name for --list-prs and --pr
+--state <state>              PR state for --list-prs (open|closed|all)
+--limit <n>                  Max PRs to list
 --help, -h                   Show help
 ```
 

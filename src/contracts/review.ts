@@ -36,6 +36,9 @@ export interface FileDiff {
 export interface AIComment {
   path: string;
   line: number;
+  startLine?: number;
+  endLine?: number;
+  replacementSnippet?: string;
   severity: 'critical' | 'non-critical';
   title: string;
   body: string;

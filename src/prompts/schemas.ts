@@ -20,6 +20,9 @@ export const SummaryOutputSchema = z.object({
 export const ReviewFindingSchema = z.object({
   path: z.string().min(1),
   line: z.number().int().positive(),
+  startLine: z.number().int().positive().optional(),
+  endLine: z.number().int().positive().optional(),
+  replacementSnippet: z.string().optional(),
   severity: z.enum(['critical', 'non-critical']),
   title: z.string().min(1),
   body: z.string().min(1),

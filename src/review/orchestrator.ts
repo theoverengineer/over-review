@@ -197,6 +197,9 @@ export class ReviewOrchestrator {
     const rawFindings = reviewResult.output.findings.map((finding) => ({
       path: finding.path,
       line: finding.line,
+      startLine: finding.startLine,
+      endLine: finding.endLine,
+      replacementSnippet: finding.replacementSnippet,
       severity: finding.severity,
       title: finding.title,
       body: finding.body,
@@ -215,6 +218,9 @@ export class ReviewOrchestrator {
     const inlineComments = inlineFindings.map((finding) => ({
       path: finding.path,
       line: finding.line,
+      startLine: finding.startLine,
+      endLine: finding.endLine,
+      replacementSnippet: finding.replacementSnippet,
       body: renderInlineComment(finding),
     }));
 
