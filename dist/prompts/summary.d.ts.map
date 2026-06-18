@@ -1,0 +1,1 @@
+{"version":3,"file":"summary.d.ts","sourceRoot":"","sources":["../../src/prompts/summary.ts"],"names":[],"mappings":"AAAA;;;GAGG;AAEH,OAAO,KAAK,EAAE,QAAQ,EAAE,MAAM,qBAAqB,CAAC;AAGpD,MAAM,WAAW,kBAAkB;IACjC,KAAK,CAAC,EAAE,MAAM,CAAC;IACf,WAAW,CAAC,EAAE,MAAM,CAAC;IACrB,SAAS,EAAE,QAAQ,EAAE,CAAC;CACvB;AAED,wBAAgB,kBAAkB,CAAC,KAAK,EAAE,kBAAkB,GAAG,MAAM,CAyBpE"}
