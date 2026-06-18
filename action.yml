@@ -54,9 +54,9 @@ inputs:
     default: 'false'
 
 runs:
-  using: 'node20'
+  using: 'node24'
   main: 'dist/main.js'
 
 branding:
   icon: 'check-square'
-  color: 'black'
+  color: 'gray-dark'

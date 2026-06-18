@@ -19,6 +19,57 @@ export interface SubmittedReview {
   inlineCommentIds: number[];
 }
 
+/**
+ * Determines if a comment should use GitHub's suggestion block format.
+ * This requires both replacementSnippet and a valid line range (startLine/endLine).
+ */
+function usesSuggestionBlock(comment: DraftInlineComment): boolean {
+  return (
+    comment.replacementSnippet !== undefined &&
+    comment.startLine !== undefined &&
+    comment.endLine !== undefined
+  );
+}
+
+/**
+ * Maps an inline comment to the GitHub API review comment format.
+ * For ranged suggestions with replacement snippets, includes start_line, start_side, line, and side.
+ * For single-line comments, includes only line and side.
+ */
+function mapToReviewComment(comment: DraftInlineComment): {
+  body: string;
+  path: string;
+  line?: number;
+  start_line?: number;
+  start_side?: 'LEFT' | 'RIGHT';
+  side?: 'LEFT' | 'RIGHT';
+} {
+  const base: {
+    body: string;
+    path: string;
+    line?: number;
+    start_line?: number;
+    start_side?: 'LEFT' | 'RIGHT';
+    side?: 'LEFT' | 'RIGHT';
+  } = {
+    body: comment.body,
+    path: comment.path,
+    side: 'RIGHT',
+  };
+
+  if (usesSuggestionBlock(comment)) {
+    // Ranged comment with suggestion block
+    base.start_line = comment.startLine;
+    base.line = comment.endLine;
+    base.start_side = 'RIGHT';
+  } else {
+    // Single-line comment
+    base.line = comment.line;
+  }
+
+  return base;
+}
+
 export async function submitReview(
   client: GitHubClient,
   repoFullName: string,
@@ -35,12 +86,7 @@ export async function submitReview(
       {
         body,
         event: reviewEvent,
-        comments: comments.map((comment) => ({
-          body: comment.body,
-          path: comment.path,
-          line: comment.line,
-          side: 'RIGHT',
-        })),
+        comments: comments.map(mapToReviewComment),
       }
     );
 
@@ -57,12 +103,7 @@ export async function submitReview(
         {
           body,
           event: fallbackEvent,
-          comments: comments.map((comment) => ({
-            body: comment.body,
-            path: comment.path,
-            line: comment.line,
-            side: 'RIGHT',
-          })),
+          comments: comments.map(mapToReviewComment),
         }
       );
 
@@ -85,12 +126,7 @@ export async function submitReview(
     for (const comment of comments) {
       const response = await client.post<{ id: number }>(
         `/repos/${repoFullName}/pulls/${pullRequestNumber}/comments`,
-        {
-          body: comment.body,
-          path: comment.path,
-          line: comment.line,
-          side: 'RIGHT',
-        }
+        mapToReviewComment(comment)
       );
       inlineCommentIds.push(response.id);
     }
