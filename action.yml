@@ -59,4 +59,4 @@ runs:
 
 branding:
   icon: 'check-square'
-  color: 'black'
+  color: 'gray-dark'
