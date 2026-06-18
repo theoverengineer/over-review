@@ -56,14 +56,18 @@ const CONFIG_KEYS: Array<keyof Config> = [
 ];
 
 const ACTION_INPUT_MAP: Array<[keyof Config, string]> = [
+  ['GITHUB_TOKEN', 'github-token'],
   ['LLM_MODEL', 'llm-model'],
   ['LLM_API_KEY', 'llm-api-key'],
   ['LLM_BASE_URL', 'llm-base-url'],
+  ['LLM_PROVIDER', 'llm-provider'],
   ['STYLE_GUIDE_RULES', 'style-guide-rules'],
   ['LLM_TIMEOUT_MS', 'llm-timeout-ms'],
   ['LLM_STRUCTURED_OUTPUTS', 'llm-structured-outputs'],
   ['GITHUB_API_URL', 'github-api-url'],
   ['GITHUB_SERVER_URL', 'github-server-url'],
+  ['DEBUG', 'debug'],
+  ['DRY_RUN', 'dry-run'],
   ['FULL_REVIEW', 'full-mode'],
   ['REVIEW_MODE', 'review-mode'],
 ];

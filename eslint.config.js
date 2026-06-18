@@ -6,7 +6,7 @@ const globals = require('globals');
 /** @type {import('eslint').Linter.Config[]} */
 module.exports = [
   {
-    ignores: ['dist/', 'node_modules/', '.opencode/', 'vitest.config.ts'],
+    ignores: ['coverage/', 'dist/', 'node_modules/', '.opencode/', 'vitest.config.ts'],
   },
   {
     files: ['**/*.ts'],

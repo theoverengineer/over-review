@@ -316,6 +316,62 @@ describe('cli', () => {
     expect(mocks.reviewRunMock).toHaveBeenCalled();
   });
 
+  it('honors config FULL_REVIEW for event-driven PR reviews', async () => {
+    writeFileSync(
+      join(tempDir, 'event.json'),
+      JSON.stringify({
+        repository: { full_name: 'owner/repo' },
+        pull_request: { number: 123 },
+      })
+    );
+    mocks.loadConfigWithMetadataMock.mockReturnValueOnce({
+      config: {
+        GITHUB_TOKEN: 'token',
+        LLM_MODEL: 'test-model',
+        LLM_API_KEY: 'key',
+        LLM_PROVIDER: 'ai-sdk',
+        GITHUB_API_URL: 'https://api.github.com',
+        GITHUB_SERVER_URL: 'https://github.com',
+        DEBUG: false,
+        DRY_RUN: true,
+        FULL_REVIEW: true,
+        REVIEW_MODE: 'cli',
+      },
+      metadata: {
+        envFile: { status: 'skipped' },
+        sources: {
+          GITHUB_TOKEN: 'default',
+          LLM_MODEL: 'default',
+          LLM_API_KEY: 'default',
+          LLM_PROVIDER: 'default',
+          LLM_BASE_URL: 'default',
+          STYLE_GUIDE_RULES: 'default',
+          LLM_TIMEOUT_MS: 'default',
+          LLM_STRUCTURED_OUTPUTS: 'default',
+          GITHUB_API_URL: 'default',
+          GITHUB_SERVER_URL: 'default',
+          DEBUG: 'default',
+          DRY_RUN: 'default',
+          FULL_REVIEW: 'cli',
+          REVIEW_MODE: 'cli',
+        },
+      },
+    });
+    mocks.routeEventMock.mockResolvedValue({
+      handled: true,
+      outcome: { type: 'review', fullMode: false },
+    });
+    mocks.reviewRunMock.mockResolvedValue({ handled: true, reviewMode: 'full' });
+
+    await runCli(['--event', 'pull_request', '--payload', 'event.json', '--dry-run']);
+
+    expect(mocks.reviewRunMock).toHaveBeenCalledWith({
+      repoFullName: 'owner/repo',
+      pullRequestNumber: 123,
+      forceFullReview: true,
+    });
+  });
+
   it('does not run orchestrator for unauthorized manual review commands', async () => {
     writeFileSync(
       join(tempDir, 'event.json'),

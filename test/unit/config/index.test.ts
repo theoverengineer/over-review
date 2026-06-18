@@ -478,6 +478,40 @@ describe('loadActionInputs', () => {
     expect(inputs.FULL_REVIEW).toBe(true);
     expect(inputs.LLM_TIMEOUT_MS).toBe(90000);
   });
+
+  it('maps action inputs for all supported config keys', () => {
+    const inputs = loadActionInputs({
+      [toActionInputEnvName('github-token')]: 'action-token',
+      [toActionInputEnvName('llm-model')]: 'gpt-4o-mini',
+      [toActionInputEnvName('llm-api-key')]: 'action-key',
+      [toActionInputEnvName('llm-base-url')]: 'https://custom.api.com',
+      [toActionInputEnvName('llm-provider')]: 'ai-sdk',
+      [toActionInputEnvName('style-guide-rules')]: 'No console.log statements',
+      [toActionInputEnvName('llm-timeout-ms')]: '60000',
+      [toActionInputEnvName('llm-structured-outputs')]: 'true',
+      [toActionInputEnvName('github-api-url')]: 'https://api.github.com',
+      [toActionInputEnvName('github-server-url')]: 'https://github.com',
+      [toActionInputEnvName('debug')]: 'true',
+      [toActionInputEnvName('dry-run')]: 'true',
+      [toActionInputEnvName('full-mode')]: 'true',
+      [toActionInputEnvName('review-mode')]: 'manual',
+    });
+
+    expect(inputs.GITHUB_TOKEN).toBe('action-token');
+    expect(inputs.LLM_MODEL).toBe('gpt-4o-mini');
+    expect(inputs.LLM_API_KEY).toBe('action-key');
+    expect(inputs.LLM_BASE_URL).toBe('https://custom.api.com');
+    expect(inputs.LLM_PROVIDER).toBe('ai-sdk');
+    expect(inputs.STYLE_GUIDE_RULES).toBe('No console.log statements');
+    expect(inputs.LLM_TIMEOUT_MS).toBe(60000);
+    expect(inputs.LLM_STRUCTURED_OUTPUTS).toBe(true);
+    expect(inputs.GITHUB_API_URL).toBe('https://api.github.com');
+    expect(inputs.GITHUB_SERVER_URL).toBe('https://github.com');
+    expect(inputs.DEBUG).toBe(true);
+    expect(inputs.DRY_RUN).toBe(true);
+    expect(inputs.FULL_REVIEW).toBe(true);
+    expect(inputs.REVIEW_MODE).toBe('manual');
+  });
 });
 
 describe('parseDotEnv', () => {

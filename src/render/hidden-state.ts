@@ -10,11 +10,19 @@ export const INLINE_SIGNATURE = '<!-- overreview:inline -->';
 const STATE_PREFIX = '<!-- overreview:state ';
 const STATE_SUFFIX = ' -->';
 
-export function createHiddenPayload(headSha: string, mode: 'full' | 'incremental'): HiddenPayload {
+export function createHiddenPayload(
+  lastReviewedCommit: string,
+  mode: 'full' | 'incremental',
+  reviewedCommits?: string[]
+): HiddenPayload {
   return {
     version: 1,
-    reviewedCommits: headSha ? [headSha] : [],
-    lastReviewedCommit: headSha,
+    reviewedCommits: reviewedCommits
+      ? [...reviewedCommits]
+      : lastReviewedCommit
+        ? [lastReviewedCommit]
+        : [],
+    lastReviewedCommit,
     mode,
   };
 }
@@ -41,6 +49,7 @@ export function decodeHiddenState(commentBody: string): HiddenPayload | null {
     if (
       parsed.version !== 1 ||
       !Array.isArray(parsed.reviewedCommits) ||
+      !parsed.reviewedCommits.every((commit) => typeof commit === 'string') ||
       typeof parsed.lastReviewedCommit !== 'string' ||
       (parsed.mode !== 'full' && parsed.mode !== 'incremental')
     ) {

@@ -5,7 +5,7 @@
 
 import type { AIProvider } from '../contracts/provider';
 import type { Config } from '../config/schema';
-import type { AIComment, PullRequestSummary } from '../contracts/review';
+import type { AIComment, FileDiff, HiddenPayload, PullRequestSummary } from '../contracts/review';
 import { normalizeFileDiffs, filterReviewableFileDiffs } from '../diff/normalize-file-diffs';
 import {
   createOverviewComment,
@@ -69,6 +69,14 @@ export interface ReviewRunResult {
   artifacts: ReviewArtifacts;
 }
 
+interface ReviewPlan {
+  reviewMode: 'full' | 'incremental';
+  commitCount: number;
+  fileDiffs: FileDiff[];
+  loadingPayload: HiddenPayload;
+  skipReason?: string;
+}
+
 export class ReviewOrchestrator {
   constructor(private readonly options: ReviewOrchestratorOptions) {}
 
@@ -85,16 +93,53 @@ export class ReviewOrchestrator {
       request.pullRequestNumber
     );
     const existingOverviewComment = findOverviewComment(issueComments);
-    const reviewMode: 'full' | 'incremental' = request.forceFullReview ? 'full' : 'full';
-    const fileDiffs = filterReviewableFileDiffs(normalizeFileDiffs(reviewData.files));
+    const currentCommitShas = reviewData.commits.map((commit) => commit.sha);
+    const reviewableFileDiffs = filterReviewableFileDiffs(normalizeFileDiffs(reviewData.files));
+    const reviewPlan = await this.resolveReviewPlan({
+      repoFullName: request.repoFullName,
+      currentHeadSha: reviewData.pullRequest.headSha,
+      currentCommitShas,
+      fileDiffs: reviewableFileDiffs,
+      existingPayload: existingOverviewComment?.payload ?? null,
+      forceFullReview: Boolean(request.forceFullReview),
+    });
+
+    if (reviewPlan.skipReason) {
+      logger.info(reviewPlan.skipReason, {
+        reviewMode: reviewPlan.reviewMode,
+      });
+
+      return {
+        handled: true,
+        reason: reviewPlan.skipReason,
+        reviewMode: reviewPlan.reviewMode,
+        actionableFindings: [],
+        inlineFindings: [],
+        skippedFindingCount: 0,
+        commitCount: 0,
+        fileCount: 0,
+        overviewCommentId: existingOverviewComment?.id,
+        artifacts: {
+          loadingOverviewBody: existingOverviewComment?.body,
+          finalOverviewBody: existingOverviewComment?.body,
+          inlineComments: [],
+        },
+      };
+    }
+
+    const { reviewMode, commitCount, fileDiffs, loadingPayload } = reviewPlan;
+    const finalPayload = createHiddenPayload(
+      reviewData.pullRequest.headSha,
+      reviewMode,
+      currentCommitShas
+    );
 
     logger.info('Fetched review inputs', {
       reviewMode,
-      commitCount: reviewData.commits.length,
+      commitCount,
       fileCount: fileDiffs.length,
     });
 
-    const loadingPayload = createHiddenPayload(reviewData.pullRequest.headSha, reviewMode);
     const loadingOverviewBody = renderLoadingOverviewComment({
       payload: loadingPayload,
       reviewMode,
@@ -120,7 +165,7 @@ export class ReviewOrchestrator {
     }
 
     if (fileDiffs.length === 0) {
-      const finalOverviewBody = renderNoReviewableChangesComment({ payload: loadingPayload });
+      const finalOverviewBody = renderNoReviewableChangesComment({ payload: finalPayload });
 
       if (!dryRun) {
         if (overviewCommentId !== undefined) {
@@ -147,7 +192,7 @@ export class ReviewOrchestrator {
         actionableFindings: [],
         inlineFindings: [],
         skippedFindingCount: 0,
-        commitCount: reviewData.commits.length,
+        commitCount,
         fileCount: 0,
         overviewCommentId,
         artifacts: {
@@ -211,7 +256,7 @@ export class ReviewOrchestrator {
       review: reviewResult.output,
       actionableFindings,
       inlineFindings,
-      commitCount: reviewData.commits.length,
+      commitCount,
       fileCount: fileDiffs.length,
       skippedFindingCount,
     });
@@ -238,13 +283,12 @@ export class ReviewOrchestrator {
       reviewId = submittedReview.reviewId;
     }
 
-    const finalPayload = createHiddenPayload(reviewData.pullRequest.headSha, reviewMode);
     const finalOverviewBody = renderFinalOverviewComment({
       payload: finalPayload,
       summary,
       review: reviewResult.output,
       fileCount: fileDiffs.length,
-      commitCount: reviewData.commits.length,
+      commitCount,
       actionableFindingCount: actionableFindings.length,
       inlineCommentCount: inlineComments.length,
     });
@@ -275,7 +319,7 @@ export class ReviewOrchestrator {
       actionableFindings,
       inlineFindings,
       skippedFindingCount,
-      commitCount: reviewData.commits.length,
+      commitCount,
       fileCount: fileDiffs.length,
       overviewCommentId,
       reviewId,
@@ -287,6 +331,135 @@ export class ReviewOrchestrator {
         updatedTitle,
       },
     };
+  }
+
+  private async resolveReviewPlan(input: {
+    repoFullName: string;
+    currentHeadSha: string;
+    currentCommitShas: string[];
+    fileDiffs: FileDiff[];
+    existingPayload: HiddenPayload | null;
+    forceFullReview: boolean;
+  }): Promise<ReviewPlan> {
+    const fullLoadingPayload = input.existingPayload
+      ? createHiddenPayload(
+          input.existingPayload.lastReviewedCommit,
+          'full',
+          input.existingPayload.reviewedCommits
+        )
+      : createHiddenPayload('', 'full', []);
+
+    if (input.forceFullReview) {
+      return {
+        reviewMode: 'full',
+        commitCount: input.currentCommitShas.length,
+        fileDiffs: input.fileDiffs,
+        loadingPayload: fullLoadingPayload,
+      };
+    }
+
+    if (!input.existingPayload) {
+      return {
+        reviewMode: 'full',
+        commitCount: input.currentCommitShas.length,
+        fileDiffs: input.fileDiffs,
+        loadingPayload: fullLoadingPayload,
+      };
+    }
+
+    const lastReviewedCommitIndex = input.currentCommitShas.indexOf(
+      input.existingPayload.lastReviewedCommit
+    );
+
+    if (lastReviewedCommitIndex === -1) {
+      this.options.logger.info('Incremental state unavailable, falling back to full review', {
+        reason: 'last_reviewed_commit_missing',
+      });
+
+      return {
+        reviewMode: 'full',
+        commitCount: input.currentCommitShas.length,
+        fileDiffs: input.fileDiffs,
+        loadingPayload: fullLoadingPayload,
+      };
+    }
+
+    const newCommitShas = input.currentCommitShas.slice(lastReviewedCommitIndex + 1);
+    const incrementalLoadingPayload = createHiddenPayload(
+      input.existingPayload.lastReviewedCommit,
+      'incremental',
+      input.existingPayload.reviewedCommits
+    );
+
+    if (newCommitShas.length === 0) {
+      return {
+        reviewMode: 'incremental',
+        commitCount: 0,
+        fileDiffs: [],
+        loadingPayload: incrementalLoadingPayload,
+        skipReason: 'No new commits since last review',
+      };
+    }
+
+    const changedPaths = await this.getFilesChangedSinceCommit(
+      input.repoFullName,
+      input.existingPayload.lastReviewedCommit,
+      input.currentHeadSha
+    );
+
+    if (changedPaths === null) {
+      this.options.logger.info('Incremental file selection failed, falling back to full review', {
+        reason: 'compare_lookup_failed',
+      });
+
+      return {
+        reviewMode: 'full',
+        commitCount: input.currentCommitShas.length,
+        fileDiffs: input.fileDiffs,
+        loadingPayload: fullLoadingPayload,
+      };
+    }
+
+    return {
+      reviewMode: 'incremental',
+      commitCount: newCommitShas.length,
+      fileDiffs: input.fileDiffs.filter(
+        (fileDiff) =>
+          changedPaths.has(fileDiff.path) ||
+          (fileDiff.previousFilename !== undefined && changedPaths.has(fileDiff.previousFilename))
+      ),
+      loadingPayload: incrementalLoadingPayload,
+    };
+  }
+
+  private async getFilesChangedSinceCommit(
+    repoFullName: string,
+    base: string,
+    head: string
+  ): Promise<Set<string> | null> {
+    try {
+      const compare = await this.options.client.get<{
+        files?: Array<{
+          filename: string;
+          previous_filename?: string;
+        }>;
+      }>(`/repos/${repoFullName}/compare/${base}...${head}`);
+
+      if (!Array.isArray(compare.files)) {
+        return new Set();
+      }
+
+      return new Set(
+        compare.files.flatMap((file) =>
+          file.previous_filename ? [file.filename, file.previous_filename] : [file.filename]
+        )
+      );
+    } catch (error) {
+      this.options.logger.warn(
+        `Failed to fetch files changed since ${base}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      return null;
+    }
   }
 }
 

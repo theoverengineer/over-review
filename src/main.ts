@@ -40,7 +40,7 @@ export async function main(): Promise<void> {
       eventName,
       repo: context.repo,
       prNumber: context.prNumber,
-      dryRun: false,
+      dryRun: config.DRY_RUN,
       provider: config.LLM_PROVIDER,
       model: config.LLM_MODEL,
     },
@@ -77,12 +77,12 @@ export async function main(): Promise<void> {
         provider,
         config,
         logger,
-        dryRun: false,
+        dryRun: config.DRY_RUN,
       });
       const reviewResult = await orchestrator.runPullRequestReview({
         repoFullName: event.repository.full_name,
         pullRequestNumber: (event as PullRequestEvent).pull_request.number,
-        forceFullReview: result.outcome.fullMode,
+        forceFullReview: result.outcome.fullMode || config.FULL_REVIEW,
       });
 
       logger.info('Automatic review finished', {
@@ -99,12 +99,12 @@ export async function main(): Promise<void> {
         provider,
         config,
         logger,
-        dryRun: false,
+        dryRun: config.DRY_RUN,
       });
       const reviewResult = await orchestrator.runPullRequestReview({
         repoFullName: event.repository.full_name,
         pullRequestNumber: (event as IssueCommentEvent).issue.number,
-        forceFullReview: result.outcome.fullMode,
+        forceFullReview: result.outcome.fullMode || config.FULL_REVIEW,
       });
 
       logger.info('Manual review finished', {
@@ -121,7 +121,7 @@ export async function main(): Promise<void> {
         provider,
         config,
         logger,
-        dryRun: false,
+        dryRun: config.DRY_RUN,
       });
       const replyResult = await orchestrator.run({
         repoFullName: event.repository.full_name,

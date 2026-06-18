@@ -41,6 +41,9 @@ inputs:
   github-server-url:
     description: 'GitHub server URL (for GitHub Enterprise)'
     required: false
+  github-token:
+    description: 'GitHub token for API authentication'
+    required: false
   debug:
     description: 'Enable debug logging'
     required: false

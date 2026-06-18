@@ -27,4 +27,37 @@ describe('render/hidden-state', () => {
   it('appends an inline signature marker', () => {
     expect(appendInlineSignature('Inline body')).toContain('<!-- overreview:inline -->');
   });
+
+  it('creates fresh payload for full review with no prior state', () => {
+    const payload = createHiddenPayload('abc123', 'full');
+
+    expect(payload).toEqual({
+      version: 1,
+      reviewedCommits: ['abc123'],
+      lastReviewedCommit: 'abc123',
+      mode: 'full',
+    });
+  });
+
+  it('uses explicit reviewed commits when provided', () => {
+    const payload = createHiddenPayload('def456', 'incremental', ['abc123', 'bcd234', 'def456']);
+
+    expect(payload).toEqual({
+      version: 1,
+      reviewedCommits: ['abc123', 'bcd234', 'def456'],
+      lastReviewedCommit: 'def456',
+      mode: 'incremental',
+    });
+  });
+
+  it('allows empty loading-state payloads without marking any commit reviewed', () => {
+    const payload = createHiddenPayload('', 'full', []);
+
+    expect(payload).toEqual({
+      version: 1,
+      reviewedCommits: [],
+      lastReviewedCommit: '',
+      mode: 'full',
+    });
+  });
 });

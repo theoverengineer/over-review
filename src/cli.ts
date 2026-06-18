@@ -285,7 +285,7 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
       output = await orchestrator.runPullRequestReview({
         repoFullName: event.repository.full_name,
         pullRequestNumber: event.pull_request.number,
-        forceFullReview: result.outcome.fullMode,
+        forceFullReview: result.outcome.fullMode || config.FULL_REVIEW,
       });
     } else if (options.event === 'issue_comment' && 'issue' in event) {
       const orchestrator = new ReviewOrchestrator({
@@ -299,7 +299,7 @@ export async function runCli(args: string[] = process.argv.slice(2)): Promise<vo
       output = await orchestrator.runPullRequestReview({
         repoFullName: event.repository.full_name,
         pullRequestNumber: event.issue.number,
-        forceFullReview: result.outcome.fullMode,
+        forceFullReview: result.outcome.fullMode || config.FULL_REVIEW,
       });
     } else if (
       options.event === 'pull_request_review_comment' &&
