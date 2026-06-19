@@ -219,7 +219,7 @@ function parseDotEnv(content) {
     return env;
 }
 function toActionInputEnvName(inputName) {
-    return `INPUT_${inputName.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase()}`;
+    return `INPUT_${inputName.toUpperCase()}`;
 }
 function mergeConfigPatches(...patches) {
     return Object.assign({}, ...patches);

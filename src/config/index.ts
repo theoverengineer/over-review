@@ -271,7 +271,7 @@ export function parseDotEnv(content: string): NodeJS.ProcessEnv {
 }
 
 export function toActionInputEnvName(inputName: string): string {
-  return `INPUT_${inputName.replace(/[^a-zA-Z0-9]+/g, '_').toUpperCase()}`;
+  return `INPUT_${inputName.toUpperCase()}`;
 }
 
 function mergeConfigPatches(...patches: ConfigPatch[]): ConfigPatch {

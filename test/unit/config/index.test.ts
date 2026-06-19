@@ -36,8 +36,8 @@ describe('loadConfig', () => {
         GITHUB_TOKEN: 'env-token',
         LLM_MODEL: 'env-model',
         LLM_API_KEY: 'env-key',
-        [toActionInputEnvName('llm-model')]: 'input-model',
-        [toActionInputEnvName('llm-api-key')]: 'input-key',
+        'INPUT_LLM-MODEL': 'input-model',
+        'INPUT_LLM-API-KEY': 'input-key',
       },
       cli: {
         LLM_MODEL: 'cli-model',
@@ -192,7 +192,7 @@ describe('loadConfig', () => {
         GITHUB_TOKEN: 'token',
         LLM_MODEL: 'model',
         LLM_API_KEY: 'key',
-        [toActionInputEnvName('llm-timeout-ms')]: '45000',
+        'INPUT_LLM-TIMEOUT-MS': '45000',
       },
     });
 
@@ -281,7 +281,7 @@ describe('loadConfig', () => {
         GITHUB_TOKEN: 'token',
         LLM_MODEL: 'model',
         LLM_API_KEY: 'key',
-        [toActionInputEnvName('llm-structured-outputs')]: 'true',
+        'INPUT_LLM-STRUCTURED-OUTPUTS': 'true',
       },
     });
 
@@ -383,8 +383,8 @@ describe('loadConfig', () => {
         GITHUB_TOKEN: 'token',
         LLM_MODEL: 'model',
         LLM_API_KEY: 'key',
-        [toActionInputEnvName('llm-model')]: 'input-model',
-        [toActionInputEnvName('full-mode')]: 'true',
+        'INPUT_LLM-MODEL': 'input-model',
+        'INPUT_FULL-MODE': 'true',
       },
     });
 
@@ -465,12 +465,14 @@ describe('loadConfig', () => {
 });
 
 describe('loadActionInputs', () => {
-  it('reads hyphenated action input names via INPUT_* env vars', () => {
+  it('reads hyphenated action input names via INPUT_* env vars (GitHub Actions format)', () => {
+    // GitHub Actions preserves hyphens in env var names for action inputs
+    // e.g., input "llm-model" becomes env var "INPUT_LLM-MODEL"
     const inputs = loadActionInputs({
-      [toActionInputEnvName('llm-model')]: 'gpt-4o-mini',
-      [toActionInputEnvName('llm-api-key')]: 'secret',
-      [toActionInputEnvName('full-mode')]: 'true',
-      [toActionInputEnvName('llm-timeout-ms')]: '90000',
+      'INPUT_LLM-MODEL': 'gpt-4o-mini',
+      'INPUT_LLM-API-KEY': 'secret',
+      'INPUT_FULL-MODE': 'true',
+      'INPUT_LLM-TIMEOUT-MS': '90000',
     });
 
     expect(inputs.LLM_MODEL).toBe('gpt-4o-mini');
@@ -479,22 +481,38 @@ describe('loadActionInputs', () => {
     expect(inputs.LLM_TIMEOUT_MS).toBe(90000);
   });
 
+  it('toActionInputEnvName correctly converts hyphenated input names to GitHub Actions env var format', () => {
+    expect(toActionInputEnvName('llm-model')).toBe('INPUT_LLM-MODEL');
+    expect(toActionInputEnvName('llm-api-key')).toBe('INPUT_LLM-API-KEY');
+    expect(toActionInputEnvName('llm-base-url')).toBe('INPUT_LLM-BASE-URL');
+    expect(toActionInputEnvName('style-guide-rules')).toBe('INPUT_STYLE-GUIDE-RULES');
+    expect(toActionInputEnvName('llm-timeout-ms')).toBe('INPUT_LLM-TIMEOUT-MS');
+    expect(toActionInputEnvName('llm-structured-outputs')).toBe('INPUT_LLM-STRUCTURED-OUTPUTS');
+    expect(toActionInputEnvName('github-api-url')).toBe('INPUT_GITHUB-API-URL');
+    expect(toActionInputEnvName('github-server-url')).toBe('INPUT_GITHUB-SERVER-URL');
+    expect(toActionInputEnvName('review-mode')).toBe('INPUT_REVIEW-MODE');
+    expect(toActionInputEnvName('full-mode')).toBe('INPUT_FULL-MODE');
+    expect(toActionInputEnvName('dry-run')).toBe('INPUT_DRY-RUN');
+    expect(toActionInputEnvName('debug')).toBe('INPUT_DEBUG');
+    expect(toActionInputEnvName('github-token')).toBe('INPUT_GITHUB-TOKEN');
+  });
+
   it('maps action inputs for all supported config keys', () => {
     const inputs = loadActionInputs({
-      [toActionInputEnvName('github-token')]: 'action-token',
-      [toActionInputEnvName('llm-model')]: 'gpt-4o-mini',
-      [toActionInputEnvName('llm-api-key')]: 'action-key',
-      [toActionInputEnvName('llm-base-url')]: 'https://custom.api.com',
-      [toActionInputEnvName('llm-provider')]: 'ai-sdk',
-      [toActionInputEnvName('style-guide-rules')]: 'No console.log statements',
-      [toActionInputEnvName('llm-timeout-ms')]: '60000',
-      [toActionInputEnvName('llm-structured-outputs')]: 'true',
-      [toActionInputEnvName('github-api-url')]: 'https://api.github.com',
-      [toActionInputEnvName('github-server-url')]: 'https://github.com',
-      [toActionInputEnvName('debug')]: 'true',
-      [toActionInputEnvName('dry-run')]: 'true',
-      [toActionInputEnvName('full-mode')]: 'true',
-      [toActionInputEnvName('review-mode')]: 'manual',
+      'INPUT_GITHUB-TOKEN': 'action-token',
+      'INPUT_LLM-MODEL': 'gpt-4o-mini',
+      'INPUT_LLM-API-KEY': 'action-key',
+      'INPUT_LLM-BASE-URL': 'https://custom.api.com',
+      'INPUT_LLM-PROVIDER': 'ai-sdk',
+      'INPUT_STYLE-GUIDE-RULES': 'No console.log statements',
+      'INPUT_LLM-TIMEOUT-MS': '60000',
+      'INPUT_LLM-STRUCTURED-OUTPUTS': 'true',
+      'INPUT_GITHUB-API-URL': 'https://api.github.com',
+      'INPUT_GITHUB-SERVER-URL': 'https://github.com',
+      INPUT_DEBUG: 'true',
+      'INPUT_DRY-RUN': 'true',
+      'INPUT_FULL-MODE': 'true',
+      'INPUT_REVIEW-MODE': 'manual',
     });
 
     expect(inputs.GITHUB_TOKEN).toBe('action-token');
